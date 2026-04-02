@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 import {
   calculateMonthlyCashFlow,
   calculateMonthlyNetIncome,
@@ -14,6 +15,7 @@ import {
 } from "@/lib/engine/calculator";
 
 export async function POST(req: Request) {
+  const profileId = await getActiveProfileIdFromRequest(req);
   const { message, history } = await req.json();
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -31,11 +33,11 @@ export async function POST(req: Request) {
 
   // Gather financial context
   const [incomes, expenses, debts, assets, goals] = await Promise.all([
-    prisma.income.findMany(),
-    prisma.expense.findMany(),
-    prisma.debt.findMany(),
-    prisma.asset.findMany(),
-    prisma.goal.findMany(),
+    prisma.income.findMany({ where: { profileId } }),
+    prisma.expense.findMany({ where: { profileId } }),
+    prisma.debt.findMany({ where: { profileId } }),
+    prisma.asset.findMany({ where: { profileId } }),
+    prisma.goal.findMany({ where: { profileId } }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate }));

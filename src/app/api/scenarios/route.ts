@@ -1,8 +1,11 @@
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const profileId = await getActiveProfileIdFromRequest(req);
   const items = await prisma.scenario.findMany({
+    where: { profileId },
     include: { changes: true },
     orderBy: { createdAt: "desc" },
   });
@@ -10,11 +13,13 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const profileId = await getActiveProfileIdFromRequest(req);
   const body = await req.json();
   const { changes, ...scenarioData } = body;
   const item = await prisma.scenario.create({
     data: {
       ...scenarioData,
+      profileId,
       changes: changes ? { create: changes } : undefined,
     },
     include: { changes: true },

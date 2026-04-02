@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveProfileId } from "@/lib/profile";
 import { notFound } from "next/navigation";
 import { ScenarioDetailClient } from "./client";
 
@@ -6,6 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ScenarioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const profileId = await getActiveProfileId();
   const scenario = await prisma.scenario.findUnique({
     where: { id },
     include: { changes: true },
@@ -14,11 +16,11 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
   if (!scenario) return notFound();
 
   const [incomes, expenses, debts, assets, goals] = await Promise.all([
-    prisma.income.findMany(),
-    prisma.expense.findMany(),
-    prisma.debt.findMany(),
-    prisma.asset.findMany(),
-    prisma.goal.findMany(),
+    prisma.income.findMany({ where: { profileId } }),
+    prisma.expense.findMany({ where: { profileId } }),
+    prisma.debt.findMany({ where: { profileId } }),
+    prisma.asset.findMany({ where: { profileId } }),
+    prisma.goal.findMany({ where: { profileId } }),
   ]);
 
   const state = {

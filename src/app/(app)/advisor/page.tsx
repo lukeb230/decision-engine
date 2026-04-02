@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveProfileId } from "@/lib/profile";
 import {
   calculateMonthlyCashFlow,
   calculateNetWorth,
@@ -14,11 +15,12 @@ import { AdvisorClient } from "./client";
 export const dynamic = "force-dynamic";
 
 export default async function AdvisorPage() {
+  const profileId = await getActiveProfileId();
   const [incomes, expenses, debts, assets] = await Promise.all([
-    prisma.income.findMany(),
-    prisma.expense.findMany(),
-    prisma.debt.findMany(),
-    prisma.asset.findMany(),
+    prisma.income.findMany({ where: { profileId } }),
+    prisma.expense.findMany({ where: { profileId } }),
+    prisma.debt.findMany({ where: { profileId } }),
+    prisma.asset.findMany({ where: { profileId } }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate }));

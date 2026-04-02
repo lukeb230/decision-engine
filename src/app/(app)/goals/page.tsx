@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getActiveProfileId } from "@/lib/profile";
 import { GoalsClient } from "./client";
 import {
   calculateMonthlyCashFlow,
@@ -12,13 +13,14 @@ import { projectToGoal } from "@/lib/engine/projections";
 export const dynamic = "force-dynamic";
 
 export default async function GoalsPage() {
+  const profileId = await getActiveProfileId();
   const [goals, incomes, expenses, debts, assets, scenarios] = await Promise.all([
-    prisma.goal.findMany({ orderBy: { priority: "asc" } }),
-    prisma.income.findMany(),
-    prisma.expense.findMany(),
-    prisma.debt.findMany(),
-    prisma.asset.findMany(),
-    prisma.scenario.findMany({ where: { isBaseline: false }, include: { changes: true }, take: 5 }),
+    prisma.goal.findMany({ where: { profileId }, orderBy: { priority: "asc" } }),
+    prisma.income.findMany({ where: { profileId } }),
+    prisma.expense.findMany({ where: { profileId } }),
+    prisma.debt.findMany({ where: { profileId } }),
+    prisma.asset.findMany({ where: { profileId } }),
+    prisma.scenario.findMany({ where: { profileId, isBaseline: false }, include: { changes: true }, take: 5 }),
   ]);
 
   const incomeInputs = incomes.map((i) => ({ id: i.id, name: i.name, amount: i.amount, frequency: i.frequency, taxRate: i.taxRate }));

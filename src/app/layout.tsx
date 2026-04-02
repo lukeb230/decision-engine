@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 const geistSans = Geist({
@@ -31,10 +30,7 @@ export default function RootLayout({
     >
       <body className="min-h-full">
         <TooltipProvider>
-          <Sidebar />
-          <main className="md:ml-64 min-h-screen">
-            <div className="p-6 md:p-8 max-w-7xl mx-auto">{children}</div>
-          </main>
+          {children}
         </TooltipProvider>
       </body>
     </html>

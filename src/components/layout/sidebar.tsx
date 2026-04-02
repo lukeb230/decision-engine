@@ -14,6 +14,7 @@ import {
   Receipt,
   Menu,
   X,
+  Users,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,9 +29,21 @@ const navigation = [
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  profileName: string;
+  avatarColor: string;
+}
+
+export function Sidebar({ profileName, avatarColor }: SidebarProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const initials = profileName
+    .split(" ")
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 
   return (
     <>
@@ -58,9 +71,27 @@ export function Sidebar() {
           mobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="p-6 border-b">
-          <h1 className="text-xl font-bold tracking-tight">Decision Analysis</h1>
-          <p className="text-xs text-muted-foreground mt-1">Scenario & Goal Engine</p>
+        {/* Profile section */}
+        <div className="p-4 border-b">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-9 w-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+              style={{ backgroundColor: avatarColor }}
+            >
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{profileName}</p>
+              <p className="text-[10px] text-muted-foreground">Decision Analysis</p>
+            </div>
+          </div>
+          <Link
+            href="/profiles"
+            className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Users className="h-3 w-3" />
+            Switch Profile
+          </Link>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
@@ -87,7 +118,7 @@ export function Sidebar() {
 
         <div className="p-4 border-t">
           <p className="text-xs text-muted-foreground">
-            Local-first. Your data stays on your machine.
+            Your data is isolated per profile.
           </p>
         </div>
       </aside>
