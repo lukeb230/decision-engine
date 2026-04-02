@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,27 +17,44 @@ import {
   AlertTriangle,
   Lightbulb,
   Sparkles,
+  Wrench,
+  Check,
+  X,
+  Plus,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+
+interface ProposedAction {
+  operation: "create" | "update" | "delete";
+  entityType: string;
+  id?: string;
+  data?: Record<string, unknown>;
+  description?: string;
+}
 
 interface StructuredResponse {
   summary: string;
   tradeoffs: string[];
   nextStep: string;
+  proposedActions?: ProposedAction[];
 }
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   structured?: StructuredResponse;
+  actionsApplied?: boolean;
+  actionsDismissed?: boolean;
 }
 
 const quickPrompts = [
   { text: "Can I afford a $1,500/month apartment?", icon: "🏠" },
   { text: "How much does a $500/mo car payment delay my goals?", icon: "🚗" },
   { text: "Should I increase investing or pay off debt first?", icon: "📊" },
-  { text: "What's the fastest way to reach $100K net worth?", icon: "🎯" },
-  { text: "How much should I have in my emergency fund?", icon: "🛡️" },
+  { text: "Add a $200/mo grocery budget increase", icon: "🛒" },
+  { text: "Increase my 401k contribution to $750/mo", icon: "📈" },
   { text: "What if I get a $10K raise?", icon: "💰" },
 ];
 
@@ -47,10 +65,53 @@ interface Props {
   hasApiKey: boolean;
 }
 
+function ActionIcon({ operation }: { operation: string }) {
+  if (operation === "create") return <Plus className="h-3.5 w-3.5 text-emerald-600" />;
+  if (operation === "update") return <Pencil className="h-3.5 w-3.5 text-blue-600" />;
+  if (operation === "delete") return <Trash2 className="h-3.5 w-3.5 text-red-500" />;
+  return <Wrench className="h-3.5 w-3.5" />;
+}
+
+function describeAction(action: ProposedAction): string {
+  if (action.description) return action.description;
+  if (action.operation === "create" && action.data) {
+    const name = action.data.name as string;
+    return `Add new ${action.entityType}: ${name}`;
+  }
+  if (action.operation === "delete") {
+    return `Remove ${action.entityType}`;
+  }
+  return `${action.operation} ${action.entityType}`;
+}
+
+function actionDetail(action: ProposedAction): string {
+  if (action.operation === "create" && action.data) {
+    const parts: string[] = [];
+    if (action.data.amount) parts.push(`$${action.data.amount}`);
+    if (action.data.value) parts.push(`$${action.data.value}`);
+    if (action.data.balance) parts.push(`$${action.data.balance} balance`);
+    if (action.data.frequency) parts.push(action.data.frequency as string);
+    if (action.data.monthlyContribution) parts.push(`$${action.data.monthlyContribution}/mo contribution`);
+    if (action.data.interestRate) parts.push(`${action.data.interestRate}% APR`);
+    if (action.data.growthRate) parts.push(`${action.data.growthRate}% growth`);
+    if (action.data.category) parts.push(action.data.category as string);
+    if (action.data.type) parts.push(action.data.type as string);
+    return parts.join(" \u00b7 ");
+  }
+  if (action.operation === "update" && action.data) {
+    return Object.entries(action.data)
+      .map(([k, v]) => `${k}: ${v}`)
+      .join(", ");
+  }
+  return "";
+}
+
 export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Props) {
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [executing, setExecuting] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -89,17 +150,88 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
         {
           role: "assistant",
           content: "Sorry, something went wrong. Please try again.",
-          structured: {
-            summary: "Connection error occurred.",
-            tradeoffs: [],
-            nextStep: "Check your internet connection and try again.",
-          },
+          structured: { summary: "Connection error occurred.", tradeoffs: [], nextStep: "Check your internet connection and try again.", proposedActions: [] },
         },
       ]);
     }
 
     setLoading(false);
     inputRef.current?.focus();
+  }
+
+  async function applyActions(msgIndex: number) {
+    const msg = messages[msgIndex];
+    if (!msg?.structured?.proposedActions?.length) return;
+
+    setExecuting(msgIndex);
+
+    try {
+      const res = await fetch("/api/advisor/execute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ actions: msg.structured.proposedActions }),
+      });
+
+      const result = await res.json();
+
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === msgIndex ? { ...m, actionsApplied: true } : m
+        )
+      );
+
+      if (result.success) {
+        // Add a confirmation message
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "",
+            structured: {
+              summary: `Done! Applied ${result.appliedCount} change${result.appliedCount !== 1 ? "s" : ""} to your profile. Your dashboard and projections are now updated.`,
+              tradeoffs: [],
+              nextStep: "Check your Dashboard to see the impact of these changes.",
+              proposedActions: [],
+            },
+          },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "",
+            structured: {
+              summary: `Applied ${result.appliedCount} of ${result.totalCount} changes. Some actions failed.`,
+              tradeoffs: result.results.filter((r: { success: boolean; error?: string }) => !r.success).map((r: { error?: string }) => r.error || "Unknown error"),
+              nextStep: "Review the errors and try again.",
+              proposedActions: [],
+            },
+          },
+        ]);
+      }
+
+      router.refresh();
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "",
+          structured: { summary: "Failed to apply changes. Please try again.", tradeoffs: [], nextStep: "", proposedActions: [] },
+        },
+      ]);
+    }
+
+    setExecuting(null);
+  }
+
+  function dismissActions(msgIndex: number) {
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i === msgIndex ? { ...m, actionsDismissed: true } : m
+      )
+    );
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -114,12 +246,11 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
       <div>
         <h1 className="text-2xl font-bold tracking-tight">AI Advisor</h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Ask questions about your finances and get personalized advice
+          Ask questions about your finances — or ask me to make changes
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-        {/* Main Chat Area */}
         <div className="space-y-4">
           {/* Status */}
           <Card className={hasApiKey ? "border-emerald-200 bg-emerald-50/30 dark:border-emerald-900 dark:bg-emerald-950/10" : "border-amber-200 bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/10"}>
@@ -131,7 +262,7 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {hasApiKey
-                    ? "Powered by Anthropic Claude — responses use your real financial data"
+                    ? "Can answer questions AND make changes to your data (with your approval)"
                     : "Add ANTHROPIC_API_KEY to your environment variables to enable AI"}
                 </p>
               </div>
@@ -147,9 +278,9 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
               {messages.length === 0 && (
                 <div className="text-center py-16">
                   <Bot className="h-16 w-16 mx-auto mb-4 text-muted-foreground/20" />
-                  <p className="font-medium mb-1">Ask me anything about your finances</p>
+                  <p className="font-medium mb-1">Ask me anything — or tell me to make changes</p>
                   <p className="text-sm text-muted-foreground mb-6">
-                    I have access to all your income, expenses, debts, assets, and goals.
+                    I can update your income, expenses, debts, assets, and goals. I&apos;ll always ask you to confirm first.
                   </p>
                   <div className="grid grid-cols-2 gap-2 max-w-lg mx-auto">
                     {quickPrompts.map((qp) => (
@@ -212,6 +343,74 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
                             <p className="text-sm">{msg.structured.nextStep}</p>
                           </div>
                         )}
+
+                        {/* Proposed Actions */}
+                        {msg.structured.proposedActions && msg.structured.proposedActions.length > 0 && !msg.actionsApplied && !msg.actionsDismissed && (
+                          <div className="border-2 border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 rounded-xl px-4 py-3 space-y-3">
+                            <p className="text-xs font-medium text-blue-700 dark:text-blue-400 uppercase tracking-wider flex items-center gap-1.5">
+                              <Wrench className="h-3 w-3" />
+                              Proposed Changes ({msg.structured.proposedActions.length})
+                            </p>
+
+                            <div className="space-y-2">
+                              {msg.structured.proposedActions.map((action, j) => (
+                                <div key={j} className="flex items-start gap-2 bg-white dark:bg-card rounded-lg p-2.5 border">
+                                  <ActionIcon operation={action.operation} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium">{describeAction(action)}</p>
+                                    {actionDetail(action) && (
+                                      <p className="text-xs text-muted-foreground mt-0.5">{actionDetail(action)}</p>
+                                    )}
+                                  </div>
+                                  <Badge variant="secondary" className="text-[10px] capitalize flex-shrink-0">
+                                    {action.operation}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => applyActions(i)}
+                                disabled={executing === i}
+                              >
+                                {executing === i ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                                ) : (
+                                  <Check className="h-3.5 w-3.5 mr-1.5" />
+                                )}
+                                {executing === i ? "Applying..." : "Apply Changes"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => dismissActions(i)}
+                                disabled={executing === i}
+                              >
+                                <X className="h-3.5 w-3.5 mr-1.5" />
+                                Dismiss
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Applied confirmation */}
+                        {msg.actionsApplied && (
+                          <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-emerald-600" />
+                            <p className="text-sm text-emerald-700 dark:text-emerald-400 font-medium">Changes applied</p>
+                          </div>
+                        )}
+
+                        {/* Dismissed */}
+                        {msg.actionsDismissed && (
+                          <div className="bg-muted/50 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                            <X className="h-4 w-4 text-muted-foreground" />
+                            <p className="text-sm text-muted-foreground">Changes dismissed</p>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
@@ -250,7 +449,7 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about your finances..."
+                  placeholder="Ask a question or request a change..."
                   disabled={loading}
                   className="flex-1"
                 />
@@ -277,7 +476,6 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
 
         {/* Right Sidebar */}
         <div className="space-y-4">
-          {/* Quick Stats */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm">Your Numbers</CardTitle>
@@ -304,7 +502,6 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
             </CardContent>
           </Card>
 
-          {/* Suggested Topics */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm flex items-center gap-1.5">
@@ -314,11 +511,11 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
             </CardHeader>
             <CardContent className="space-y-1.5">
               {[
-                "What's my debt-free date?",
-                "Can I retire by 50?",
-                "Is my savings rate good enough?",
-                "What should I do with $500 extra/month?",
-                "How much house can I afford?",
+                "Add a $100/mo gym membership expense",
+                "Increase my 401k contribution to $750",
+                "What if I pay an extra $200 on my credit card?",
+                "Set a goal to save $25K for a down payment",
+                "Remove my dining out expense",
               ].map((q) => (
                 <button
                   key={q}
@@ -332,13 +529,10 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
             </CardContent>
           </Card>
 
-          {/* Provider Info */}
           <Card className="border-dashed">
             <CardContent className="py-4 text-center">
               <p className="text-xs text-muted-foreground mb-2">Powered by</p>
-              <div className="flex items-center justify-center gap-2">
-                <Badge variant="outline">Anthropic Claude</Badge>
-              </div>
+              <Badge variant="outline">Anthropic Claude</Badge>
               <p className="text-[10px] text-muted-foreground mt-2">
                 Future: OpenClaw agent integration
               </p>

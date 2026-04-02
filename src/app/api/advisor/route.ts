@@ -31,7 +31,6 @@ export async function POST(req: Request) {
     });
   }
 
-  // Gather financial context
   const [incomes, expenses, debts, assets, goals] = await Promise.all([
     prisma.income.findMany({ where: { profileId } }),
     prisma.expense.findMany({ where: { profileId } }),
@@ -68,23 +67,23 @@ USER'S FINANCIAL SNAPSHOT:
 - Total Debts: $${totalDebts.toFixed(0)}
 - Emergency Fund: ${emergencyMonths} months of expenses
 
-INCOME SOURCES:
-${incomes.map((i) => `- ${i.name}: $${i.amount} (${i.frequency}, ${i.taxRate}% tax)`).join("\n")}
+INCOME SOURCES (with IDs for actions):
+${incomes.map((i) => `- [id:${i.id}] ${i.name}: $${i.amount} (${i.frequency}, ${i.taxRate}% tax)`).join("\n")}
 
-EXPENSES:
-${expenses.map((e) => `- ${e.name}: $${e.amount}/mo (${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
+EXPENSES (with IDs for actions):
+${expenses.map((e) => `- [id:${e.id}] ${e.name}: $${e.amount}/mo (${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
 
-DEBTS:
+DEBTS (with IDs for actions):
 ${debtInputs.map((d) => {
   const payoff = debtPayoffs.find((p) => p.debtId === d.id);
-  return `- ${d.name}: $${d.balance} balance, ${d.interestRate}% APR, $${d.minimumPayment}/mo payment, payoff in ${payoff ? payoff.monthsToPayoff : "?"} months`;
+  return `- [id:${d.id}] ${d.name}: $${d.balance} balance, ${d.interestRate}% APR, $${d.minimumPayment}/mo, payoff in ${payoff ? payoff.monthsToPayoff : "?"} months`;
 }).join("\n")}
 
-ASSETS:
-${assets.map((a) => `- ${a.name}: $${a.value} (${a.type}, ${a.growthRate}% growth)`).join("\n")}
+ASSETS (with IDs for actions):
+${assets.map((a) => `- [id:${a.id}] ${a.name}: $${a.value} (${a.type}, ${a.growthRate}% growth, $${a.monthlyContribution}/mo contribution)`).join("\n")}
 
-GOALS:
-${goals.map((g) => `- ${g.name}: $${g.currentAmount}/$${g.targetAmount} (${g.type}, target: ${g.targetDate.toISOString().split("T")[0]})`).join("\n")}
+GOALS (with IDs for actions):
+${goals.map((g) => `- [id:${g.id}] ${g.name}: $${g.currentAmount}/$${g.targetAmount} (${g.type}, target: ${g.targetDate.toISOString().split("T")[0]})`).join("\n")}
 `.trim();
 
   const systemPrompt = `You are a personal finance advisor inside a financial planning app called Decision Analysis. You have access to the user's complete financial data shown below.
@@ -95,18 +94,41 @@ RESPONSE FORMAT:
 You MUST respond with valid JSON in this exact structure:
 {
   "summary": "A 1-2 sentence direct answer to their question",
-  "tradeoffs": ["Key tradeoff or consideration 1", "Key tradeoff 2", "Key tradeoff 3"],
-  "nextStep": "One specific actionable recommendation"
+  "tradeoffs": ["Key tradeoff or consideration 1", "Key tradeoff 2"],
+  "nextStep": "One specific actionable recommendation",
+  "proposedActions": []
 }
+
+PROPOSED ACTIONS:
+When the user asks you to make changes (e.g. "add a $200 expense", "increase my 401k contribution", "set a new goal"), include a "proposedActions" array. Each action is an object:
+
+For CREATING new records:
+{ "operation": "create", "entityType": "expense", "data": { "name": "Netflix", "amount": 15, "frequency": "monthly", "category": "subscriptions", "isFixed": true } }
+{ "operation": "create", "entityType": "income", "data": { "name": "Side gig", "amount": 500, "frequency": "monthly", "taxRate": 25 } }
+{ "operation": "create", "entityType": "debt", "data": { "name": "Car Loan", "balance": 25000, "interestRate": 5.9, "minimumPayment": 450, "type": "auto" } }
+{ "operation": "create", "entityType": "asset", "data": { "name": "Roth IRA", "value": 5000, "type": "investment", "growthRate": 8, "monthlyContribution": 500 } }
+{ "operation": "create", "entityType": "goal", "data": { "name": "Emergency Fund", "targetAmount": 25000, "currentAmount": 5000, "targetDate": "2027-12-31", "priority": 1, "type": "emergency_fund" } }
+
+For UPDATING existing records (use the entity ID from the data above):
+{ "operation": "update", "entityType": "debt", "id": "the-id", "data": { "minimumPayment": 500 }, "description": "Increase credit card payment from $120 to $500/mo" }
+{ "operation": "update", "entityType": "asset", "id": "the-id", "data": { "monthlyContribution": 750 }, "description": "Increase 401(k) contribution to $750/mo" }
+
+For DELETING records:
+{ "operation": "delete", "entityType": "expense", "id": "the-id", "description": "Remove Netflix subscription" }
+
+IMPORTANT RULES FOR ACTIONS:
+- ALWAYS include a human-readable "description" field for update and delete actions
+- Only include proposedActions when the user explicitly asks to make a change or says something like "do it", "go ahead", "make that change", "add that", "update it"
+- If the user is just asking a question (e.g. "should I increase my contribution?"), give advice but do NOT propose actions
+- The user will see the proposed actions and must confirm before they are applied
+- Keep proposedActions as an empty array [] when no changes are requested
+- Use real IDs from the data above when updating or deleting
 
 GUIDELINES:
 - Be specific with dollar amounts and timeframes using the actual data above
-- Be direct and concise — no filler or caveats
-- Reference their actual numbers (debts, income, etc.) by name
-- If they ask about affording something, calculate the real impact on their cash flow
-- If they ask about debt vs investing, use their actual interest rates
-- Keep tradeoffs to 2-4 bullet points max
-- The nextStep should be a single concrete action they can take today`;
+- Be direct and concise
+- Reference their actual numbers by name
+- Keep tradeoffs to 2-4 bullet points max`;
 
   const messages = [
     ...(history || []).map((h: { role: string; content: string }) => ({
@@ -126,7 +148,7 @@ GUIDELINES:
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 1024,
+        max_tokens: 2048,
         system: systemPrompt,
         messages,
       }),
@@ -149,7 +171,6 @@ GUIDELINES:
     const data = await response.json();
     const text = data.content?.[0]?.text || "";
 
-    // Try to parse structured JSON response
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
@@ -161,6 +182,7 @@ GUIDELINES:
             summary: structured.summary || text,
             tradeoffs: structured.tradeoffs || [],
             nextStep: structured.nextStep || "",
+            proposedActions: structured.proposedActions || [],
           },
         });
       }
@@ -175,6 +197,7 @@ GUIDELINES:
         summary: text,
         tradeoffs: [],
         nextStep: "",
+        proposedActions: [],
       },
     });
   } catch (error) {
@@ -186,6 +209,7 @@ GUIDELINES:
         summary: "An unexpected error occurred.",
         tradeoffs: [],
         nextStep: "Please try again.",
+        proposedActions: [],
       },
     });
   }
