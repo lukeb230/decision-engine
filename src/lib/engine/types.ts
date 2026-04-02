@@ -107,6 +107,34 @@ export interface SavingsProjectionPoint {
   totalLiquid: number;
 }
 
+export interface NetWorthAtTimeframe {
+  label: string;
+  months: number;
+  baseline: number;
+  scenario: number;
+  difference: number;
+}
+
+export interface DebtComparisonItem {
+  debtId: string;
+  debtName: string;
+  baselineMonths: number;
+  scenarioMonths: number;
+  monthsSaved: number;
+  baselineInterest: number;
+  scenarioInterest: number;
+  interestSaved: number;
+}
+
+export interface GoalComparisonItem {
+  goalId: string;
+  goalName: string;
+  baselineMonths: number;
+  scenarioMonths: number;
+  monthsChanged: number;
+  accelerated: boolean;
+}
+
 export interface ScenarioComparison {
   baselineCashFlow: number;
   scenarioCashFlow: number;
@@ -116,4 +144,11 @@ export interface ScenarioComparison {
   netWorthDifference: number;
   baselineProjections: MonthlySnapshot[];
   scenarioProjections: MonthlySnapshot[];
+  netWorthAtTimeframes: NetWorthAtTimeframe[];
+  debtComparisons: DebtComparisonItem[];
+  goalComparisons: GoalComparisonItem[];
+  baselineInvestableSurplus: number;
+  scenarioInvestableSurplus: number;
+  investableSurplusDifference: number;
+  summaryText: string;
 }

@@ -9,7 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, GitBranch, ArrowRight, Star } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  GitBranch,
+  ArrowRight,
+  Star,
+  Copy,
+  Home,
+  Car,
+  Briefcase,
+  CreditCard,
+  TrendingUp,
+} from "lucide-react";
 
 interface ScenarioChange {
   id: string;
@@ -29,19 +41,51 @@ interface Scenario {
   createdAt: string;
 }
 
+const presets = [
+  { name: "Change Rent", description: "What if rent goes up or down?", icon: Home },
+  { name: "Add Side Income", description: "What if you pick up a part-time job?", icon: Briefcase },
+  { name: "New Car Payment", description: "What if you buy or sell a car?", icon: Car },
+  { name: "Aggressive Debt Payoff", description: "What if you double debt payments?", icon: CreditCard },
+  { name: "Increase Investments", description: "What if you invest more monthly?", icon: TrendingUp },
+];
+
 export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
 
-  async function handleCreate() {
+  async function handleCreate(name?: string, description?: string) {
     await fetch("/api/scenarios", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: form.name, description: form.description, isBaseline: false }),
+      body: JSON.stringify({
+        name: name || form.name,
+        description: description || form.description,
+        isBaseline: false,
+      }),
     });
     setOpen(false);
     setForm({ name: "", description: "" });
+    router.refresh();
+  }
+
+  async function handleDuplicate(scenario: Scenario) {
+    await fetch("/api/scenarios", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `${scenario.name} (Copy)`,
+        description: scenario.description,
+        isBaseline: false,
+        changes: scenario.changes.map((c) => ({
+          entityType: c.entityType,
+          entityId: c.entityId,
+          field: c.field,
+          oldValue: c.oldValue,
+          newValue: c.newValue,
+        })),
+      }),
+    });
     router.refresh();
   }
 
@@ -57,16 +101,16 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
     <div className="space-y-6 pt-2 md:pt-0">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Scenarios</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Scenario Builder</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Model what-if changes and compare against your baseline
+            Model life decisions and see their financial impact instantly
           </p>
         </div>
         <Button onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4 mr-2" /> New Scenario
         </Button>
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Create Scenario</DialogTitle>
             </DialogHeader>
@@ -76,7 +120,7 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Salary Raise to $95K"
+                  placeholder="e.g. Move to a cheaper apartment"
                 />
               </div>
               <div>
@@ -84,12 +128,30 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
                 <Input
                   value={form.description}
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="What changes does this scenario model?"
+                  placeholder="What life decision are you modeling?"
                 />
               </div>
-              <Button className="w-full" onClick={handleCreate} disabled={!form.name}>
+              <Button className="w-full" onClick={() => handleCreate()} disabled={!form.name}>
                 Create Scenario
               </Button>
+              <div className="pt-2 border-t">
+                <p className="text-xs text-muted-foreground mb-3">Or start from a template:</p>
+                <div className="grid grid-cols-1 gap-2">
+                  {presets.map((p) => (
+                    <button
+                      key={p.name}
+                      onClick={() => handleCreate(p.name, p.description)}
+                      className="flex items-center gap-3 p-2.5 rounded-lg border text-left hover:bg-accent transition-colors"
+                    >
+                      <p.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium">{p.name}</p>
+                        <p className="text-xs text-muted-foreground">{p.description}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -97,8 +159,8 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
 
       {/* Baseline */}
       {baseline && (
-        <Card className="border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20">
-          <CardHeader>
+        <Card className="border-blue-200 bg-gradient-to-r from-blue-50/80 to-white dark:from-blue-950/20 dark:to-card dark:border-blue-900">
+          <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Star className="h-5 w-5 text-blue-600" />
@@ -114,44 +176,58 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              {baseline.description || "Your current financial state — all scenarios are compared against this."}
+              {baseline.description || "Your current financial state — all scenarios compare against this."}
             </p>
           </CardContent>
         </Card>
       )}
 
-      {/* Other scenarios */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {others.length === 0 && !baseline ? (
-          <Card className="col-span-full">
-            <CardContent className="text-center text-muted-foreground py-12">
-              <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No scenarios yet. Create one to start modeling what-if changes.</p>
-            </CardContent>
-          </Card>
-        ) : others.length === 0 ? (
-          <Card className="col-span-full">
-            <CardContent className="text-center text-muted-foreground py-8">
-              <p>No alternative scenarios. Click "New Scenario" to create one.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          others.map((s) => (
-            <Card key={s.id}>
+      {/* Scenario cards */}
+      {others.length === 0 ? (
+        <Card>
+          <CardContent className="text-center text-muted-foreground py-12">
+            <GitBranch className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p className="font-medium mb-1">No scenarios yet</p>
+            <p className="text-sm">Create your first scenario to start exploring what-if decisions.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {others.map((s) => (
+            <Card key={s.id} className="group hover:border-foreground/20 transition-colors">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <CardTitle className="text-base">{s.name}</CardTitle>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(s.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                  </Button>
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleDuplicate(s)}
+                      title="Duplicate"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={() => handleDelete(s.id)}
+                      title="Delete"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 text-red-500" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground line-clamp-2">
                   {s.description || "No description"}
                 </p>
                 <div className="flex items-center justify-between">
-                  <Badge variant="secondary">{s.changes.length} change{s.changes.length !== 1 ? "s" : ""}</Badge>
+                  <Badge variant="secondary">
+                    {s.changes.length} change{s.changes.length !== 1 ? "s" : ""}
+                  </Badge>
                   <Link href={`/scenarios/${s.id}`}>
                     <Button variant="outline" size="sm">
                       Edit & Compare <ArrowRight className="h-4 w-4 ml-1" />
@@ -160,9 +236,9 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
                 </div>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
