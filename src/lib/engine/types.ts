@@ -90,6 +90,23 @@ export interface ScenarioChangeInput {
   newValue: string;
 }
 
+export interface MilestoneEstimate {
+  name: string;
+  targetValue: number;
+  currentValue: number;
+  estimatedMonths: number;
+  estimatedDate: string;
+  achievable: boolean;
+}
+
+export interface SavingsProjectionPoint {
+  month: number;
+  label: string;
+  savings: number;
+  investments: number;
+  totalLiquid: number;
+}
+
 export interface ScenarioComparison {
   baselineCashFlow: number;
   scenarioCashFlow: number;

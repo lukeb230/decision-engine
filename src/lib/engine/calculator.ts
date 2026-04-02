@@ -1,4 +1,13 @@
-import { IncomeInput, ExpenseInput, DebtInput, AssetInput, DebtPayoffResult } from "./types";
+import {
+  IncomeInput,
+  ExpenseInput,
+  DebtInput,
+  AssetInput,
+  DebtPayoffResult,
+  FinancialState,
+  MilestoneEstimate,
+  SavingsProjectionPoint,
+} from "./types";
 
 function toMonthly(amount: number, frequency: string): number {
   switch (frequency) {
@@ -128,4 +137,174 @@ export function calculateEmergencyFundMonths(
   const monthlyExpenses = calculateMonthlyExpenses(expenses);
   if (monthlyExpenses === 0) return Infinity;
   return Math.round((liquidAssets / monthlyExpenses) * 10) / 10;
+}
+
+/**
+ * Savings rate = free cash flow / net income.
+ * A healthy savings rate is 20%+. Returns 0-100 scale.
+ */
+export function calculateSavingsRate(
+  incomes: IncomeInput[],
+  expenses: ExpenseInput[],
+  debts: DebtInput[]
+): number {
+  const netIncome = calculateMonthlyNetIncome(incomes);
+  if (netIncome <= 0) return 0;
+  const cashFlow = calculateMonthlyCashFlow(incomes, expenses, debts);
+  return Math.round((Math.max(0, cashFlow) / netIncome) * 1000) / 10;
+}
+
+/**
+ * Projects savings account growth over time, assuming surplus cash flow
+ * is deposited monthly. Includes interest earned on savings.
+ */
+export function projectSavings(
+  assets: AssetInput[],
+  monthlySurplus: number,
+  months: number
+): SavingsProjectionPoint[] {
+  const points: SavingsProjectionPoint[] = [];
+  const now = new Date();
+
+  // Separate savings from investments
+  let savings = assets
+    .filter((a) => a.type === "savings")
+    .reduce((sum, a) => sum + a.value, 0);
+  let investments = assets
+    .filter((a) => a.type === "investment")
+    .reduce((sum, a) => sum + a.value, 0);
+
+  // Assume 4.5% APY on savings, 8% on investments
+  const savingsMonthlyRate = 0.045 / 12;
+  const investmentMonthlyRate = 0.08 / 12;
+
+  for (let m = 0; m <= months; m++) {
+    const date = new Date(now.getFullYear(), now.getMonth() + m, 1);
+    const label = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+
+    if (m > 0) {
+      savings = savings * (1 + savingsMonthlyRate) + Math.max(0, monthlySurplus);
+      investments = investments * (1 + investmentMonthlyRate);
+    }
+
+    points.push({
+      month: m,
+      label,
+      savings: Math.round(savings * 100) / 100,
+      investments: Math.round(investments * 100) / 100,
+      totalLiquid: Math.round((savings + investments) * 100) / 100,
+    });
+  }
+
+  return points;
+}
+
+/**
+ * Estimates when key financial milestones will be reached.
+ * Uses current trajectory (cash flow + asset growth) to project forward.
+ */
+export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
+  const milestones: MilestoneEstimate[] = [];
+  const now = new Date();
+  const netIncome = calculateMonthlyNetIncome(state.incomes);
+  const totalExpenses = calculateMonthlyExpenses(state.expenses);
+  const debtPayments = calculateMonthlyDebtPayments(state.debts);
+  const cashFlow = netIncome - totalExpenses - debtPayments;
+  const currentNetWorth = calculateNetWorth(state.assets, state.debts);
+  const totalDebt = calculateTotalDebts(state.debts);
+  const totalAssets = calculateTotalAssets(state.assets);
+
+  // Milestone: Debt-free date
+  if (totalDebt > 0) {
+    // Simulate month-by-month debt payoff
+    const debtBalances = state.debts.map((d) => ({ ...d, currentBalance: d.balance }));
+    let months = 0;
+    const maxMonths = 600;
+    let allPaid = false;
+
+    while (!allPaid && months < maxMonths) {
+      months++;
+      allPaid = true;
+      for (const debt of debtBalances) {
+        if (debt.currentBalance > 0.01) {
+          const interest = debt.currentBalance * (debt.interestRate / 100 / 12);
+          debt.currentBalance = Math.max(0, debt.currentBalance + interest - debt.minimumPayment);
+          if (debt.currentBalance > 0.01) allPaid = false;
+        }
+      }
+    }
+
+    const debtFreeDate = new Date(now);
+    debtFreeDate.setMonth(debtFreeDate.getMonth() + months);
+
+    milestones.push({
+      name: "Debt Free",
+      targetValue: 0,
+      currentValue: totalDebt,
+      estimatedMonths: allPaid ? months : Infinity,
+      estimatedDate: allPaid ? debtFreeDate.toISOString().split("T")[0] : "Never",
+      achievable: allPaid,
+    });
+  }
+
+  // Milestone: $100K net worth
+  if (currentNetWorth < 100000) {
+    const monthlyGrowth = cashFlow + totalAssets * 0.005; // rough monthly appreciation
+    const remaining = 100000 - currentNetWorth;
+    const months = monthlyGrowth > 0 ? Math.ceil(remaining / monthlyGrowth) : Infinity;
+    const date = new Date(now);
+    date.setMonth(date.getMonth() + months);
+
+    milestones.push({
+      name: "$100K Net Worth",
+      targetValue: 100000,
+      currentValue: currentNetWorth,
+      estimatedMonths: months === Infinity ? Infinity : months,
+      estimatedDate: months === Infinity ? "Never" : date.toISOString().split("T")[0],
+      achievable: months !== Infinity && months < 600,
+    });
+  }
+
+  // Milestone: 6-month emergency fund
+  const liquidSavings = state.assets
+    .filter((a) => a.type === "savings")
+    .reduce((sum, a) => sum + a.value, 0);
+  const monthlyExpensesTotal = totalExpenses + debtPayments;
+  const emergencyTarget = monthlyExpensesTotal * 6;
+
+  if (liquidSavings < emergencyTarget) {
+    const remaining = emergencyTarget - liquidSavings;
+    const months = cashFlow > 0 ? Math.ceil(remaining / cashFlow) : Infinity;
+    const date = new Date(now);
+    date.setMonth(date.getMonth() + months);
+
+    milestones.push({
+      name: "6-Month Emergency Fund",
+      targetValue: emergencyTarget,
+      currentValue: liquidSavings,
+      estimatedMonths: months === Infinity ? Infinity : months,
+      estimatedDate: months === Infinity ? "Never" : date.toISOString().split("T")[0],
+      achievable: months !== Infinity && months < 600,
+    });
+  }
+
+  // Milestone: $250K net worth
+  if (currentNetWorth < 250000) {
+    const monthlyGrowth = cashFlow + totalAssets * 0.005;
+    const remaining = 250000 - currentNetWorth;
+    const months = monthlyGrowth > 0 ? Math.ceil(remaining / monthlyGrowth) : Infinity;
+    const date = new Date(now);
+    date.setMonth(date.getMonth() + months);
+
+    milestones.push({
+      name: "$250K Net Worth",
+      targetValue: 250000,
+      currentValue: currentNetWorth,
+      estimatedMonths: months === Infinity ? Infinity : months,
+      estimatedDate: months === Infinity ? "Never" : date.toISOString().split("T")[0],
+      achievable: months !== Infinity && months < 600,
+    });
+  }
+
+  return milestones;
 }
