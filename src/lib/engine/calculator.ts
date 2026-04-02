@@ -183,8 +183,14 @@ export function projectSavings(
     const label = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 
     if (m > 0) {
-      savings = savings * (1 + savingsMonthlyRate) + Math.max(0, monthlySurplus);
-      investments = investments * (1 + investmentMonthlyRate);
+      const savingsContributions = assets
+        .filter((a) => a.type === "savings")
+        .reduce((sum, a) => sum + (a.monthlyContribution || 0), 0);
+      const investmentContributions = assets
+        .filter((a) => a.type === "investment")
+        .reduce((sum, a) => sum + (a.monthlyContribution || 0), 0);
+      savings = savings * (1 + savingsMonthlyRate) + savingsContributions + Math.max(0, monthlySurplus);
+      investments = investments * (1 + investmentMonthlyRate) + investmentContributions;
     }
 
     points.push({

@@ -59,12 +59,13 @@ const entityFields: Record<EntityType, string[]> = {
   income: ["amount", "taxRate"],
   expense: ["amount"],
   debt: ["balance", "interestRate", "minimumPayment"],
-  asset: ["value", "growthRate"],
+  asset: ["value", "growthRate", "monthlyContribution"],
 };
 
 const fieldLabels: Record<string, string> = {
   amount: "Amount",
   taxRate: "Tax Rate (%)",
+  monthlyContribution: "Monthly Contribution",
   balance: "Balance",
   interestRate: "Interest Rate (%)",
   minimumPayment: "Monthly Payment",

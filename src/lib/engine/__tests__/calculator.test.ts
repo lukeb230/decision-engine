@@ -35,9 +35,9 @@ const debts: DebtInput[] = [
 ];
 
 const assets: AssetInput[] = [
-  { id: "1", name: "Savings", value: 12000, type: "savings", growthRate: 4.5 },
-  { id: "2", name: "401k", value: 28000, type: "investment", growthRate: 8 },
-  { id: "3", name: "Car", value: 18000, type: "vehicle", growthRate: -10 },
+  { id: "1", name: "Savings", value: 12000, type: "savings", growthRate: 4.5, monthlyContribution: 0 },
+  { id: "2", name: "401k", value: 28000, type: "investment", growthRate: 8, monthlyContribution: 500 },
+  { id: "3", name: "Car", value: 18000, type: "vehicle", growthRate: -10, monthlyContribution: 0 },
 ];
 
 // --- Income tests ---

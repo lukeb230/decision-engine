@@ -30,6 +30,7 @@ export interface AssetInput {
   value: number;
   type: string;
   growthRate: number;
+  monthlyContribution: number;
 }
 
 export interface GoalInput {

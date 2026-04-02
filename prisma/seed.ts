@@ -46,10 +46,10 @@ async function main() {
   await prisma.debt.create({ data: { profileId: alex.id, name: "Car Loan", balance: 15000, interestRate: 4.2, minimumPayment: 450, type: "auto" } });
   const alexCC = await prisma.debt.create({ data: { profileId: alex.id, name: "Credit Card", balance: 3200, interestRate: 19.99, minimumPayment: 120, type: "credit" } });
 
-  await prisma.asset.create({ data: { profileId: alex.id, name: "Savings Account", value: 12000, type: "savings", growthRate: 4.5 } });
-  await prisma.asset.create({ data: { profileId: alex.id, name: "401(k)", value: 28000, type: "investment", growthRate: 8 } });
-  await prisma.asset.create({ data: { profileId: alex.id, name: "Brokerage Account", value: 5000, type: "investment", growthRate: 7 } });
-  await prisma.asset.create({ data: { profileId: alex.id, name: "Car (2021 Honda Civic)", value: 18000, type: "vehicle", growthRate: -10 } });
+  await prisma.asset.create({ data: { profileId: alex.id, name: "Savings Account", value: 12000, type: "savings", growthRate: 4.5, monthlyContribution: 200 } });
+  await prisma.asset.create({ data: { profileId: alex.id, name: "401(k)", value: 28000, type: "investment", growthRate: 8, monthlyContribution: 500 } });
+  await prisma.asset.create({ data: { profileId: alex.id, name: "Brokerage Account", value: 5000, type: "investment", growthRate: 7, monthlyContribution: 150 } });
+  await prisma.asset.create({ data: { profileId: alex.id, name: "Car (2021 Honda Civic)", value: 18000, type: "vehicle", growthRate: -10, monthlyContribution: 0 } });
 
   await prisma.goal.create({ data: { profileId: alex.id, name: "Emergency Fund", targetAmount: 15000, currentAmount: 12000, targetDate: new Date("2026-12-31"), priority: 1, type: "emergency_fund" } });
   await prisma.goal.create({ data: { profileId: alex.id, name: "Pay Off Credit Card", targetAmount: 3200, currentAmount: 0, targetDate: new Date("2026-06-30"), priority: 2, type: "debt_free" } });
@@ -95,10 +95,10 @@ async function main() {
   await prisma.debt.create({ data: { profileId: jordan.id, name: "Mortgage", balance: 285000, interestRate: 6.5, minimumPayment: 1800, type: "mortgage" } });
   await prisma.debt.create({ data: { profileId: jordan.id, name: "Personal Loan", balance: 8000, interestRate: 9.0, minimumPayment: 250, type: "personal" } });
 
-  await prisma.asset.create({ data: { profileId: jordan.id, name: "Checking Account", value: 5500, type: "savings", growthRate: 0.5 } });
-  await prisma.asset.create({ data: { profileId: jordan.id, name: "Savings Account", value: 18000, type: "savings", growthRate: 4.5 } });
-  await prisma.asset.create({ data: { profileId: jordan.id, name: "Roth IRA", value: 42000, type: "investment", growthRate: 8 } });
-  await prisma.asset.create({ data: { profileId: jordan.id, name: "Home Equity", value: 65000, type: "property", growthRate: 3 } });
+  await prisma.asset.create({ data: { profileId: jordan.id, name: "Checking Account", value: 5500, type: "savings", growthRate: 0.5, monthlyContribution: 0 } });
+  await prisma.asset.create({ data: { profileId: jordan.id, name: "Savings Account", value: 18000, type: "savings", growthRate: 4.5, monthlyContribution: 300 } });
+  await prisma.asset.create({ data: { profileId: jordan.id, name: "Roth IRA", value: 42000, type: "investment", growthRate: 8, monthlyContribution: 583 } });
+  await prisma.asset.create({ data: { profileId: jordan.id, name: "Home Equity", value: 65000, type: "property", growthRate: 3, monthlyContribution: 0 } });
 
   await prisma.goal.create({ data: { profileId: jordan.id, name: "Pay Off Personal Loan", targetAmount: 8000, currentAmount: 0, targetDate: new Date("2027-06-30"), priority: 1, type: "debt_free" } });
   await prisma.goal.create({ data: { profileId: jordan.id, name: "$50K Emergency Fund", targetAmount: 50000, currentAmount: 23500, targetDate: new Date("2028-12-31"), priority: 2, type: "emergency_fund" } });

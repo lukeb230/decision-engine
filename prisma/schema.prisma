@@ -64,15 +64,16 @@ model Debt {
 }
 
 model Asset {
-  id         String   @id @default(cuid())
-  profileId  String
-  profile    Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  name       String
-  value      Float
-  type       String   @default("other")
-  growthRate Float    @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  profileId           String
+  profile             Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name                String
+  value               Float
+  type                String   @default("other")
+  growthRate          Float    @default(0)
+  monthlyContribution Float    @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Goal {

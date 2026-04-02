@@ -40,10 +40,11 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
         }
       }
 
-      // Grow assets
+      // Grow assets and apply monthly contributions
       for (const asset of state.assets) {
         const monthlyRate = asset.growthRate / 100 / 12;
         assetValues[asset.id] *= 1 + monthlyRate;
+        assetValues[asset.id] += asset.monthlyContribution || 0;
       }
 
       // Add surplus cash flow to first savings asset

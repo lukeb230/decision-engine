@@ -39,7 +39,7 @@ export default async function DashboardPage() {
     id: d.id, name: d.name, balance: d.balance, interestRate: d.interestRate, minimumPayment: d.minimumPayment, type: d.type,
   }));
   const assetInputs = assets.map((a) => ({
-    id: a.id, name: a.name, value: a.value, type: a.type, growthRate: a.growthRate,
+    id: a.id, name: a.name, value: a.value, type: a.type, growthRate: a.growthRate, monthlyContribution: a.monthlyContribution,
   }));
   const goalInputs = goals.map((g) => ({
     id: g.id, name: g.name, targetAmount: g.targetAmount, currentAmount: g.currentAmount, targetDate: g.targetDate.toISOString(), priority: g.priority, type: g.type,

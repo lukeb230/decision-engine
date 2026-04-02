@@ -20,6 +20,7 @@ interface Asset {
   value: number;
   type: string;
   growthRate: number;
+  monthlyContribution: number;
 }
 
 const assetTypes = ["savings", "investment", "property", "vehicle", "other"];
@@ -28,13 +29,13 @@ export function AssetsClient({ items }: { items: Asset[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
-  const [form, setForm] = useState({ name: "", value: "", type: "savings", growthRate: "0" });
+  const [form, setForm] = useState({ name: "", value: "", type: "savings", growthRate: "0", monthlyContribution: "0" });
 
   const totalValue = items.reduce((sum, a) => sum + a.value, 0);
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", value: "", type: "savings", growthRate: "0" });
+    setForm({ name: "", value: "", type: "savings", growthRate: "0", monthlyContribution: "0" });
     setOpen(true);
   }
 
@@ -45,6 +46,7 @@ export function AssetsClient({ items }: { items: Asset[] }) {
       value: String(item.value),
       type: item.type,
       growthRate: String(item.growthRate),
+      monthlyContribution: String(item.monthlyContribution),
     });
     setOpen(true);
   }
@@ -55,6 +57,7 @@ export function AssetsClient({ items }: { items: Asset[] }) {
       value: parseFloat(form.value),
       type: form.type,
       growthRate: parseFloat(form.growthRate),
+      monthlyContribution: parseFloat(form.monthlyContribution) || 0,
     };
     if (editing) {
       await fetch("/api/assets", {
@@ -115,9 +118,15 @@ export function AssetsClient({ items }: { items: Asset[] }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Annual Growth Rate (%)</Label>
-                <Input type="number" step="0.1" value={form.growthRate} onChange={(e) => setForm({ ...form, growthRate: e.target.value })} placeholder="7" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Annual Growth Rate (%)</Label>
+                  <Input type="number" step="0.1" value={form.growthRate} onChange={(e) => setForm({ ...form, growthRate: e.target.value })} placeholder="7" />
+                </div>
+                <div>
+                  <Label>Monthly Contribution ($)</Label>
+                  <Input type="number" value={form.monthlyContribution} onChange={(e) => setForm({ ...form, monthlyContribution: e.target.value })} placeholder="500" />
+                </div>
               </div>
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.value}>
                 {editing ? "Update" : "Add"} Asset
@@ -136,6 +145,7 @@ export function AssetsClient({ items }: { items: Asset[] }) {
                 <TableHead>Value</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Growth Rate</TableHead>
+                <TableHead>Monthly Contrib.</TableHead>
                 <TableHead>5yr Projection</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -143,19 +153,20 @@ export function AssetsClient({ items }: { items: Asset[] }) {
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                     No assets tracked. Click "Add Asset" to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item) => {
-                  const projected = calculateInvestmentGrowth(item.value, 0, item.growthRate, 5);
+                  const projected = calculateInvestmentGrowth(item.value, item.monthlyContribution, item.growthRate, 5);
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell className="text-green-600">{formatCurrency(item.value)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{item.type}</Badge></TableCell>
                       <TableCell>{formatPercent(item.growthRate)}</TableCell>
+                      <TableCell>{item.monthlyContribution > 0 ? `${formatCurrency(item.monthlyContribution)}/mo` : <span className="text-muted-foreground">--</span>}</TableCell>
                       <TableCell className="text-blue-600">{formatCurrency(projected)}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
