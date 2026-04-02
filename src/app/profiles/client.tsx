@@ -49,7 +49,14 @@ export function ProfilesClient({ profiles }: { profiles: Profile[] }) {
     const profile = await res.json();
     setOpen(false);
     setName("");
-    await selectProfile(profile.id);
+    // Set the profile cookie, then redirect to onboarding
+    await fetch("/api/profiles/switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profileId: profile.id }),
+    });
+    router.push("/onboarding");
+    router.refresh();
   }
 
   async function deleteProfile(e: React.MouseEvent, id: string) {

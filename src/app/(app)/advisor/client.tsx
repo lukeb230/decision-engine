@@ -54,8 +54,8 @@ const quickPrompts = [
   { text: "How much does a $500/mo car payment delay my goals?", icon: "🚗" },
   { text: "Should I increase investing or pay off debt first?", icon: "📊" },
   { text: "Add a $200/mo grocery budget increase", icon: "🛒" },
-  { text: "Increase my 401k contribution to $750/mo", icon: "📈" },
-  { text: "What if I get a $10K raise?", icon: "💰" },
+  { text: "Create a scenario: what if I move to Austin with $1,200 rent?", icon: "🏙️" },
+  { text: "What if I buy a $30K car with $450/mo payments?", icon: "💰" },
 ];
 
 interface Props {
@@ -74,6 +74,9 @@ function ActionIcon({ operation }: { operation: string }) {
 
 function describeAction(action: ProposedAction): string {
   if (action.description) return action.description;
+  if (action.entityType === "scenario" && action.operation === "create" && action.data) {
+    return `Create scenario: "${action.data.name}"`;
+  }
   if (action.operation === "create" && action.data) {
     const name = action.data.name as string;
     return `Add new ${action.entityType}: ${name}`;
@@ -85,6 +88,11 @@ function describeAction(action: ProposedAction): string {
 }
 
 function actionDetail(action: ProposedAction): string {
+  if (action.entityType === "scenario" && action.data) {
+    const changes = action.data.changes as Array<{ field: string; oldValue: string; newValue: string }> | undefined;
+    if (changes) return `${changes.length} change${changes.length !== 1 ? "s" : ""}: ${action.data.description || ""}`;
+    return action.data.description as string || "";
+  }
   if (action.operation === "create" && action.data) {
     const parts: string[] = [];
     if (action.data.amount) parts.push(`$${action.data.amount}`);
@@ -511,11 +519,11 @@ export function AdvisorClient({ netWorth, cashFlow, savingsRate, hasApiKey }: Pr
             </CardHeader>
             <CardContent className="space-y-1.5">
               {[
-                "Add a $100/mo gym membership expense",
-                "Increase my 401k contribution to $750",
-                "What if I pay an extra $200 on my credit card?",
-                "Set a goal to save $25K for a down payment",
-                "Remove my dining out expense",
+                "Add a $100/mo gym membership",
+                "Increase my 401k to $750/mo",
+                "Create a scenario: buy a $30K truck",
+                "What if I move somewhere with $1K rent?",
+                "Set a $25K down payment goal",
               ].map((q) => (
                 <button
                   key={q}

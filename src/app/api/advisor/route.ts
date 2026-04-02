@@ -116,13 +116,23 @@ For UPDATING existing records (use the entity ID from the data above):
 For DELETING records:
 { "operation": "delete", "entityType": "expense", "id": "the-id", "description": "Remove Netflix subscription" }
 
+For CREATING SCENARIOS (natural language scenario creation):
+When the user describes a life change like "What if I move to Austin and take a $90K job?" or "Create a scenario where I buy a $30K car", create a scenario with multiple changes:
+{ "operation": "create", "entityType": "scenario", "data": { "name": "Move to Austin", "description": "Take $90K job, lower rent to $1,200", "changes": [
+  { "entityType": "income", "entityId": "the-salary-id", "field": "amount", "oldValue": "3269.23", "newValue": "3461.54" },
+  { "entityType": "expense", "entityId": "the-rent-id", "field": "amount", "oldValue": "1800", "newValue": "1200" }
+] } }
+
+Use real entity IDs from the data above. Calculate reasonable new values (e.g. $90K/yr biweekly = $3461.54). The scenario will appear in the Scenarios page for comparison.
+
 IMPORTANT RULES FOR ACTIONS:
 - ALWAYS include a human-readable "description" field for update and delete actions
-- Only include proposedActions when the user explicitly asks to make a change or says something like "do it", "go ahead", "make that change", "add that", "update it"
+- Only include proposedActions when the user explicitly asks to make a change or says something like "do it", "go ahead", "make that change", "add that", "update it", or describes a what-if scenario
 - If the user is just asking a question (e.g. "should I increase my contribution?"), give advice but do NOT propose actions
 - The user will see the proposed actions and must confirm before they are applied
 - Keep proposedActions as an empty array [] when no changes are requested
 - Use real IDs from the data above when updating or deleting
+- For scenario creation, include ALL the changes that the life decision would involve
 
 GUIDELINES:
 - Be specific with dollar amounts and timeframes using the actual data above

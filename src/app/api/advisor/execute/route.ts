@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getActiveProfileIdFromRequest } from "@/lib/profile";
 
+interface ScenarioChangeData {
+  entityType: string;
+  entityId: string;
+  field: string;
+  oldValue: string;
+  newValue: string;
+}
+
 interface ProposedAction {
   operation: "create" | "update" | "delete";
-  entityType: "income" | "expense" | "debt" | "asset" | "goal";
+  entityType: "income" | "expense" | "debt" | "asset" | "goal" | "scenario";
   id?: string;
   data?: Record<string, unknown>;
   description?: string;
@@ -30,6 +38,30 @@ export async function POST(req: Request) {
 
   for (const action of actions) {
     try {
+      // Handle scenario creation specially
+      if (action.entityType === "scenario" && action.operation === "create" && action.data) {
+        const changes = (action.data.changes as ScenarioChangeData[]) || [];
+        await prisma.scenario.create({
+          data: {
+            profileId,
+            name: (action.data.name as string) || "AI-Generated Scenario",
+            description: (action.data.description as string) || "",
+            isBaseline: false,
+            changes: {
+              create: changes.map((c) => ({
+                entityType: c.entityType,
+                entityId: c.entityId,
+                field: c.field,
+                oldValue: c.oldValue,
+                newValue: c.newValue,
+              })),
+            },
+          },
+        });
+        results.push({ action, success: true });
+        continue;
+      }
+
       const modelName = prismaModels[action.entityType];
       if (!modelName) {
         results.push({ action, success: false, error: `Unknown entity type: ${action.entityType}` });

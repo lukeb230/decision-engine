@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Users,
+  Calculator,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Assets", href: "/assets", icon: Landmark },
   { name: "Goals", href: "/goals", icon: Target },
   { name: "Scenarios", href: "/scenarios", icon: GitBranch },
+  { name: "Afford It?", href: "/calculator", icon: Calculator },
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 

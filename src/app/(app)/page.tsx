@@ -3,6 +3,7 @@ import { getActiveProfileId } from "@/lib/profile";
 import {
   calculateMonthlyCashFlow,
   calculateMonthlyNetIncome,
+  calculateMonthlyGrossIncome,
   calculateMonthlyExpenses,
   calculateMonthlyDebtPayments,
   calculateNetWorth,
@@ -47,6 +48,7 @@ export default async function DashboardPage() {
 
   const state = { incomes: incomeInputs, expenses: expenseInputs, debts: debtInputs, assets: assetInputs, goals: goalInputs };
 
+  const monthlyGrossIncome = calculateMonthlyGrossIncome(incomeInputs);
   const monthlyIncome = calculateMonthlyNetIncome(incomeInputs);
   const monthlyExpenses = calculateMonthlyExpenses(expenseInputs);
   const monthlyDebtPayments = calculateMonthlyDebtPayments(debtInputs);
@@ -61,6 +63,25 @@ export default async function DashboardPage() {
   const debtPayoffs = debtInputs.map((d) => calculateDebtPayoff(d));
   const milestones = estimateMilestones(state);
   const savingsProjection = projectSavings(assetInputs, cashFlow, 60);
+
+  // DTI ratio: total monthly debt payments / gross monthly income
+  const dtiRatio = monthlyGrossIncome > 0 ? (monthlyDebtPayments / monthlyGrossIncome) * 100 : 0;
+
+  // Waterfall data: income -> expenses by category -> debt payments -> surplus
+  const expensesByCategory: Record<string, number> = {};
+  for (const e of expenseInputs) {
+    const cat = e.category.charAt(0).toUpperCase() + e.category.slice(1);
+    expensesByCategory[cat] = (expensesByCategory[cat] || 0) + e.amount;
+  }
+
+  const waterfallItems = [
+    { name: "Net Income", amount: monthlyIncome, type: "income" as const },
+    ...Object.entries(expensesByCategory)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, amount]) => ({ name, amount: -amount, type: "expense" as const })),
+    ...debtInputs.map((d) => ({ name: d.name, amount: -d.minimumPayment, type: "debt" as const })),
+    { name: "Surplus", amount: cashFlow, type: "surplus" as const },
+  ];
 
   const goalProjections = goalInputs.map((g) => {
     const proj = projectToGoal(state, g);
@@ -78,6 +99,7 @@ export default async function DashboardPage() {
       totalDebts={totalDebts}
       emergencyMonths={emergencyMonths}
       savingsRate={savingsRate}
+      dtiRatio={Math.round(dtiRatio * 10) / 10}
       projections1yr={projections1yr}
       projections5yr={projections5yr}
       debtPayoffs={debtPayoffs}
@@ -85,6 +107,7 @@ export default async function DashboardPage() {
       goals={goalInputs}
       milestones={milestones}
       savingsProjection={savingsProjection}
+      waterfallItems={waterfallItems}
     />
   );
 }
