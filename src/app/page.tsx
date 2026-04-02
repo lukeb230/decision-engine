@@ -1,65 +1,107 @@
-import Image from "next/image";
+import { prisma } from "@/lib/db";
+import {
+  calculateMonthlyCashFlow,
+  calculateMonthlyNetIncome,
+  calculateMonthlyExpenses,
+  calculateMonthlyDebtPayments,
+  calculateNetWorth,
+  calculateTotalAssets,
+  calculateTotalDebts,
+  calculateEmergencyFundMonths,
+  calculateDebtPayoff,
+} from "@/lib/engine/calculator";
+import { projectMonthly, projectToGoal } from "@/lib/engine/projections";
+import { DashboardClient } from "@/components/dashboard/dashboard-client";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const [incomes, expenses, debts, assets, goals] = await Promise.all([
+    prisma.income.findMany(),
+    prisma.expense.findMany(),
+    prisma.debt.findMany(),
+    prisma.asset.findMany(),
+    prisma.goal.findMany(),
+  ]);
+
+  const incomeInputs = incomes.map((i) => ({
+    id: i.id,
+    name: i.name,
+    amount: i.amount,
+    frequency: i.frequency,
+    taxRate: i.taxRate,
+  }));
+  const expenseInputs = expenses.map((e) => ({
+    id: e.id,
+    name: e.name,
+    amount: e.amount,
+    frequency: e.frequency,
+    category: e.category,
+    isFixed: e.isFixed,
+  }));
+  const debtInputs = debts.map((d) => ({
+    id: d.id,
+    name: d.name,
+    balance: d.balance,
+    interestRate: d.interestRate,
+    minimumPayment: d.minimumPayment,
+    type: d.type,
+  }));
+  const assetInputs = assets.map((a) => ({
+    id: a.id,
+    name: a.name,
+    value: a.value,
+    type: a.type,
+    growthRate: a.growthRate,
+  }));
+  const goalInputs = goals.map((g) => ({
+    id: g.id,
+    name: g.name,
+    targetAmount: g.targetAmount,
+    currentAmount: g.currentAmount,
+    targetDate: g.targetDate.toISOString(),
+    priority: g.priority,
+    type: g.type,
+  }));
+
+  const state = {
+    incomes: incomeInputs,
+    expenses: expenseInputs,
+    debts: debtInputs,
+    assets: assetInputs,
+    goals: goalInputs,
+  };
+
+  const monthlyIncome = calculateMonthlyNetIncome(incomeInputs);
+  const monthlyExpenses = calculateMonthlyExpenses(expenseInputs);
+  const monthlyDebtPayments = calculateMonthlyDebtPayments(debtInputs);
+  const cashFlow = calculateMonthlyCashFlow(incomeInputs, expenseInputs, debtInputs);
+  const netWorth = calculateNetWorth(assetInputs, debtInputs);
+  const totalAssets = calculateTotalAssets(assetInputs);
+  const totalDebts = calculateTotalDebts(debtInputs);
+  const emergencyMonths = calculateEmergencyFundMonths(assetInputs, expenseInputs);
+  const projections = projectMonthly(state, 36);
+  const debtPayoffs = debtInputs.map((d) => calculateDebtPayoff(d));
+
+  const goalProjections = goalInputs.map((g) => {
+    const proj = projectToGoal(state, g);
+    return { ...proj, goalId: g.id, goalName: g.name };
+  });
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    <DashboardClient
+      monthlyIncome={monthlyIncome}
+      monthlyExpenses={monthlyExpenses}
+      monthlyDebtPayments={monthlyDebtPayments}
+      cashFlow={cashFlow}
+      netWorth={netWorth}
+      totalAssets={totalAssets}
+      totalDebts={totalDebts}
+      emergencyMonths={emergencyMonths}
+      projections={projections}
+      debtPayoffs={debtPayoffs}
+      goalProjections={goalProjections}
+      goals={goalInputs}
+    />
   );
 }

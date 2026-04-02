@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Income {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Float
+  frequency String   @default("monthly")
+  taxRate   Float    @default(0)
+  startDate DateTime @default(now())
+  endDate   DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Expense {
+  id        String   @id @default(cuid())
+  name      String
+  amount    Float
+  frequency String   @default("monthly")
+  category  String   @default("other")
+  isFixed   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Debt {
+  id             String   @id @default(cuid())
+  name           String
+  balance        Float
+  interestRate   Float
+  minimumPayment Float
+  type           String   @default("personal")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Asset {
+  id         String   @id @default(cuid())
+  name       String
+  value      Float
+  type       String   @default("other")
+  growthRate Float    @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Goal {
+  id            String   @id @default(cuid())
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  targetDate    DateTime
+  priority      Int      @default(1)
+  type          String   @default("custom")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Scenario {
+  id          String           @id @default(cuid())
+  name        String
+  description String           @default("")
+  isBaseline  Boolean          @default(false)
+  changes     ScenarioChange[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model ScenarioChange {
+  id         String   @id @default(cuid())
+  scenarioId String
+  scenario   Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  entityType String
+  entityId   String
+  field      String
+  oldValue   String
+  newValue   String
+  createdAt  DateTime @default(now())
+}
