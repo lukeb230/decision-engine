@@ -29,8 +29,11 @@ export async function POST(req: Request) {
 }
 
 export async function PUT(req: Request) {
+  const profileId = await getActiveProfileIdFromRequest(req);
   const body = await req.json();
   const { id, changes, snapshotData, ...data } = body;
+  const existing = await prisma.scenario.findFirst({ where: { id, profileId } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Delete old changes and create new ones
   await prisma.scenarioChange.deleteMany({ where: { scenarioId: id } });
   const item = await prisma.scenario.update({
@@ -46,8 +49,11 @@ export async function PUT(req: Request) {
 }
 
 export async function DELETE(req: Request) {
+  const profileId = await getActiveProfileIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id")!;
+  const existing = await prisma.scenario.findFirst({ where: { id, profileId } });
+  if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await prisma.scenario.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

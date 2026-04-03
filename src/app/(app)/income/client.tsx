@@ -38,7 +38,8 @@ export function IncomeClient({ items }: { items: Income[] }) {
   const [editing, setEditing] = useState<Income | null>(null);
   const [form, setForm] = useState({ name: "", amount: "", frequency: "monthly", taxRate: "22" });
 
-  const totalMonthly = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
+  const totalMonthlyGross = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency), 0);
+  const totalMonthlyNet = items.reduce((sum, i) => sum + toMonthly(i.amount, i.frequency) * (1 - i.taxRate / 100), 0);
 
   function openNew() {
     setEditing(null);
@@ -92,7 +93,7 @@ export function IncomeClient({ items }: { items: Income[] }) {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Income</h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Total: {formatCurrency(totalMonthly)}/mo
+            {formatCurrency(totalMonthlyNet)}/mo after tax ({formatCurrency(totalMonthlyGross)} gross)
           </p>
         </div>
         <Button onClick={openNew}>

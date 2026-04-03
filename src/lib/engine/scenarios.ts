@@ -108,9 +108,11 @@ export function compareScenarios(
     };
   });
 
-  // Investable surplus: what's available to invest after all obligations
-  const baselineInvestableSurplus = Math.max(0, baselineCashFlow);
-  const scenarioInvestableSurplus = Math.max(0, scenarioCashFlow);
+  // Investable surplus: what's available AFTER contributions already committed
+  const baselineContributions = baselineState.assets.reduce((s, a) => s + (a.monthlyContribution || 0), 0);
+  const scenarioContributions = scenarioState.assets.reduce((s, a) => s + (a.monthlyContribution || 0), 0);
+  const baselineInvestableSurplus = Math.max(0, baselineCashFlow - baselineContributions);
+  const scenarioInvestableSurplus = Math.max(0, scenarioCashFlow - scenarioContributions);
 
   // Generate summary text
   const summaryParts: string[] = [];

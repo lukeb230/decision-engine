@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 export default async function ScenarioDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const profileId = await getActiveProfileId();
-  const scenario = await prisma.scenario.findUnique({
-    where: { id },
+  const scenario = await prisma.scenario.findFirst({
+    where: { id, profileId },
     include: { changes: true },
   });
 
