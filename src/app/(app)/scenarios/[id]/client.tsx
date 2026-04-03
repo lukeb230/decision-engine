@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ComparisonChart } from "@/components/charts/comparison-chart";
+import { BudgetBar } from "@/components/charts/budget-bar";
 import {
   ArrowLeft,
   Plus,
@@ -486,6 +487,20 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* ---- Budget Overview ---- */}
+      <div className="mx-auto max-w-7xl px-4 pt-6">
+        <Card>
+          <CardContent className="p-4">
+            <BudgetBar
+              income={sandboxMetrics.netIncome}
+              expenses={sandboxMetrics.expenses}
+              debtPayments={sandboxMetrics.debtPayments}
+              contributions={sandboxMetrics.totalContributions}
+            />
+          </CardContent>
+        </Card>
       </div>
 
       {/* ---- Main grid ---- */}
