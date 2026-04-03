@@ -50,6 +50,7 @@ function detectFormat(headers: string[]): BankFormat {
 
   if (joined.includes("details") && joined.includes("posting date") && joined.includes("balance")) return "chase_checking";
   if (joined.includes("transaction date") && joined.includes("post date") && joined.includes("category") && joined.includes("type")) return "chase_credit";
+  if (joined.includes("card member") || joined.includes("account #")) return "amex";
   if (joined.includes("debit") && joined.includes("credit")) return "nfcu_checking";
   if (joined.includes("transaction date") && joined.includes("post date")) return "nfcu_credit";
   if (joined.includes("date") && joined.includes("description") && joined.includes("amount")) return "usaa";
@@ -62,6 +63,7 @@ const FORMAT_LABELS: Record<BankFormat, string> = {
   usaa: "USAA",
   nfcu_checking: "Navy Federal Checking/Savings",
   nfcu_credit: "Navy Federal Credit Card",
+  amex: "American Express",
   unknown: "Unknown Format",
 };
 
@@ -117,6 +119,15 @@ function parseNFCUCredit(cols: string[]): { date: string | null; desc: string; a
   return { date: parseDate(cols[0]), desc: cols[2], amount: parseFloat(cols[3]) };
 }
 
+function parseAmex(cols: string[]): { date: string | null; desc: string; amount: number } | null {
+  // Date, Description, Card Member, Account #, Amount
+  // Amex: charges are POSITIVE, payments/credits are NEGATIVE (opposite of most banks)
+  if (cols.length < 5) return null;
+  const amount = parseFloat(cols[4]);
+  if (isNaN(amount)) return null;
+  return { date: parseDate(cols[0]), desc: cols[1], amount: amount };
+}
+
 export function parseCSV(csvText: string): ParseResult {
   const lines = csvText.split(/\r?\n/).filter((l) => l.trim());
   if (lines.length < 2) return { format: "unknown", formatLabel: "Unknown", transactions: [], errors: ["File is empty or has no data rows"], dateRange: null };
@@ -146,6 +157,7 @@ export function parseCSV(csvText: string): ParseResult {
         case "usaa": parsed = parseUSAA(cols, headerCount); break;
         case "nfcu_checking": parsed = parseNFCUChecking(cols, headers) as any; break;
         case "nfcu_credit": parsed = parseNFCUCredit(cols); break;
+        case "amex": parsed = parseAmex(cols); break;
       }
 
       if (!parsed || !parsed.date || isNaN(parsed.amount)) {
@@ -154,9 +166,12 @@ export function parseCSV(csvText: string): ParseResult {
       }
 
       // For most formats: negative = expense (outflow), positive = income (inflow)
+      // Amex is inverted: positive = charge (expense), negative = payment/credit (income)
       // NFCU checking uses separate debit/credit columns (handled in parser)
       const isIncome = parsed.isIncome !== undefined
         ? parsed.isIncome
+        : format === "amex"
+        ? parsed.amount < 0
         : parsed.amount > 0;
       const absAmount = Math.abs(parsed.amount);
 

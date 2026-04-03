@@ -1,4 +1,4 @@
-export type BankFormat = "chase_checking" | "chase_credit" | "usaa" | "nfcu_checking" | "nfcu_credit" | "unknown";
+export type BankFormat = "chase_checking" | "chase_credit" | "usaa" | "nfcu_checking" | "nfcu_credit" | "amex" | "unknown";
 
 export interface NormalizedTransaction {
   id: string;
