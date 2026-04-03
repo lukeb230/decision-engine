@@ -30,7 +30,10 @@ import {
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 
 interface CheckinData {
@@ -102,7 +105,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   other: "#6b7280",
 };
 
-export function TrendsClient({ checkins }: Props) {
+export function TrendsClient({ checkins, budget }: Props & { budget: Record<string, number> }) {
   const sorted = [...checkins].sort(
     (a, b) => a.year * 12 + a.month - (b.year * 12 + b.month)
   );
@@ -134,6 +137,9 @@ export function TrendsClient({ checkins }: Props) {
       </div>
     );
   }
+
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState(sorted.length - 1);
+  const selectedCheckin = sorted[selectedMonthIdx];
 
   // Summary calculations
   const totalMonths = sorted.length;
@@ -311,32 +317,120 @@ export function TrendsClient({ checkins }: Props) {
         </CardContent>
       </Card>
 
-      {/* Spending by Category Over Time */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Spending by Category Over Time</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="label" />
-              <YAxis />
-              <Tooltip formatter={(v) => [formatCurrency(Number(v))]} />
-              <Legend />
-              {categories.map((cat) => (
-                <Bar
-                  key={cat}
-                  dataKey={cat}
-                  stackId="categories"
-                  fill={CATEGORY_COLORS[cat] ?? "#6b7280"}
-                  name={cat.charAt(0).toUpperCase() + cat.slice(1)}
-                />
-              ))}
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+      {/* Monthly Spending Breakdown — Cycle Between Months */}
+      {selectedCheckin && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Actual Spending */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">Actual Spending</CardTitle>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedMonthIdx((i) => Math.max(0, i - 1))} disabled={selectedMonthIdx === 0}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm font-medium min-w-[70px] text-center">
+                    {monthLabel(selectedCheckin.month, selectedCheckin.year)}
+                  </span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setSelectedMonthIdx((i) => Math.min(sorted.length - 1, i + 1))} disabled={selectedMonthIdx === sorted.length - 1}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(selectedCheckin.totalExpenses)} total
+                {selectedCheckin.overallGrade && (
+                  <Badge className={`ml-2 text-[10px] ${gradeBg(selectedCheckin.overallGrade)}`}>
+                    {selectedCheckin.overallGrade}
+                  </Badge>
+                )}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Object.entries(selectedCheckin.expensesByCategory)
+                .sort((a, b) => b[1] - a[1])
+                .map(([category, amount]) => {
+                  const pct = selectedCheckin.totalExpenses > 0
+                    ? (amount / selectedCheckin.totalExpenses) * 100
+                    : 0;
+                  return (
+                    <div key={category} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[category] || "#6b7280" }} />
+                          <span className="text-sm capitalize">{category}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-muted-foreground">{pct.toFixed(0)}%</span>
+                          <span className="text-sm font-medium w-20 text-right">{formatCurrency(amount)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, pct)}%`, backgroundColor: CATEGORY_COLORS[category] || "#6b7280" }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              {Object.keys(selectedCheckin.expensesByCategory).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No spending data</p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Budget Target */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Budget Target</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {formatCurrency(Object.values(budget).reduce((s, v) => s + v, 0))} budgeted/mo
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {Object.entries(budget)
+                .sort((a, b) => b[1] - a[1])
+                .map(([category, amount]) => {
+                  const totalBudget = Object.values(budget).reduce((s, v) => s + v, 0);
+                  const pct = totalBudget > 0 ? (amount / totalBudget) * 100 : 0;
+                  const actual = selectedCheckin.expensesByCategory[category] || 0;
+                  const diff = actual - amount;
+                  return (
+                    <div key={category} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[category] || "#6b7280" }} />
+                          <span className="text-sm capitalize">{category}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {actual > 0 && (
+                            <span className={`text-xs font-medium ${diff > 0 ? "text-red-500" : "text-emerald-600"}`}>
+                              {diff > 0 ? "+" : ""}{formatCurrency(diff)}
+                            </span>
+                          )}
+                          <span className="text-sm font-medium w-20 text-right">{formatCurrency(amount)}</span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden relative">
+                        <div className="h-full rounded-full bg-blue-400 transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
+                        {actual > 0 && (
+                          <div
+                            className="absolute top-0 h-full rounded-full opacity-60"
+                            style={{
+                              width: `${Math.min(100, (actual / (Object.values(budget).reduce((s, v) => s + v, 0) || 1)) * 100)}%`,
+                              backgroundColor: diff > 0 ? "#ef4444" : "#22c55e",
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              {Object.keys(budget).length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">No budget set. Add expenses to define your budget.</p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Month-over-Month Change Table */}
       {changes.length > 0 && (
