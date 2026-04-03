@@ -246,51 +246,58 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
         };
         reader.readAsText(file);
       } else {
-        // PDF parsing
+        // PDF parsing — send to server for text extraction + AI parsing
         setLoading(true);
         try {
-          const result = await parsePDF(file);
+          // Read file as base64
+          const arrayBuffer = await file.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+          );
 
-          // If client-side parsing got no transactions, always try AI fallback
-          const rawText = (result as any)._rawText || "";
-          if (result.transactions.length === 0 && rawText.length > 0) {
-            try {
-              const aiRes = await fetch("/api/checkin/parse-pdf", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: rawText, bankHint: result.formatLabel }),
-              });
-              const aiData = await aiRes.json();
-              if (aiData.transactions && aiData.transactions.length > 0) {
-                const aiTransactions = aiData.transactions.map((t: any) => ({
-                  id: "tx_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
-                  date: t.date,
-                  description: t.description,
-                  amount: Math.abs(t.amount),
-                  isIncome: t.isIncome,
-                  category: autoCategory(t.description),
-                  source: result.format || "unknown",
-                  excluded: false,
-                }));
-                const aiResult: ParseResult = {
-                  format: result.format,
-                  formatLabel: result.formatLabel.replace(" (needs AI parsing)", "") + " (AI parsed)",
-                  transactions: aiTransactions,
-                  errors: [],
-                  dateRange: aiTransactions.length > 0
-                    ? { from: aiTransactions[0].date, to: aiTransactions[aiTransactions.length - 1].date }
-                    : null,
-                };
-                setFiles((prev) => [...prev, { name: file.name, result: aiResult }]);
-                autoDetectMonth(aiResult);
-                setLoading(false);
-                return;
-              }
-            } catch {}
+          // Send to server API for text extraction + AI parsing
+          const aiRes = await fetch("/api/checkin/parse-pdf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pdfBase64: base64, bankHint: file.name }),
+          });
+          const aiData = await aiRes.json();
+
+          if (aiData.transactions && aiData.transactions.length > 0) {
+            const aiTransactions = aiData.transactions.map((t: { date: string; description: string; amount: number; isIncome: boolean }) => ({
+              id: "tx_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
+              date: t.date,
+              description: t.description,
+              amount: Math.abs(t.amount),
+              isIncome: t.isIncome,
+              category: autoCategory(t.description),
+              source: "pdf",
+              excluded: false,
+            }));
+            aiTransactions.sort((a: NormalizedTransaction, b: NormalizedTransaction) => a.date.localeCompare(b.date));
+            const aiResult: ParseResult = {
+              format: "usaa",
+              formatLabel: "PDF (AI parsed)",
+              transactions: aiTransactions,
+              errors: [],
+              dateRange: aiTransactions.length > 0
+                ? { from: aiTransactions[0].date, to: aiTransactions[aiTransactions.length - 1].date }
+                : null,
+            };
+            setFiles((prev) => [...prev, { name: file.name, result: aiResult }]);
+            autoDetectMonth(aiResult);
+          } else {
+            setFiles((prev) => [...prev, {
+              name: file.name,
+              result: {
+                format: "unknown",
+                formatLabel: "PDF",
+                transactions: [],
+                errors: [aiData.error || "No transactions found in PDF"],
+                dateRange: null,
+              },
+            }]);
           }
-
-          setFiles((prev) => [...prev, { name: file.name, result }]);
-          autoDetectMonth(result);
         } catch (err) {
           setFiles((prev) => [...prev, {
             name: file.name,
