@@ -73,6 +73,12 @@ const CATEGORIES = [
   "subscriptions",
   "entertainment",
   "insurance",
+  "shopping",
+  "health",
+  "personal",
+  "education",
+  "pets",
+  "transfers",
   "other",
 ];
 
@@ -319,10 +325,35 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
     setFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function continueToReview() {
+  async function continueToReview() {
     const merged = files.flatMap((f) => f.result.transactions);
     setTransactions(merged);
     setStep("review");
+
+    // AI categorization — run in background after showing review
+    try {
+      const descriptions = merged.map((t) => t.description);
+      const res = await fetch("/api/checkin/categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ descriptions }),
+      });
+      const data = await res.json();
+      if (data.categories && Object.keys(data.categories).length > 0) {
+        setTransactions((prev) =>
+          prev.map((t) => {
+            const aiCat = data.categories[t.description];
+            // Only override if AI found a category and current is "other"
+            if (aiCat && (t.category === "other" || !t.category)) {
+              return { ...t, category: aiCat };
+            }
+            return t;
+          })
+        );
+      }
+    } catch {
+      // AI categorization failed silently — keyword categories remain
+    }
   }
 
   // ---------------------------------------------------------------------------
