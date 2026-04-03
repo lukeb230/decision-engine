@@ -16,8 +16,10 @@ import {
   X,
   Users,
   Calculator,
+  TrendingDown,
 } from "lucide-react";
 import { useState } from "react";
+import { ThemeToggle } from "./theme-toggle";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -28,6 +30,7 @@ const navigation = [
   { name: "Goals", href: "/goals", icon: Target },
   { name: "Scenarios", href: "/scenarios", icon: GitBranch },
   { name: "Afford It?", href: "/calculator", icon: Calculator },
+  { name: "Opportunity Cost", href: "/opportunity", icon: TrendingDown },
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 
@@ -118,10 +121,11 @@ export function Sidebar({ profileName, avatarColor }: SidebarProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t">
+        <div className="p-4 border-t flex items-center justify-between">
           <p className="text-xs text-muted-foreground">
-            Your data is isolated per profile.
+            Your data per profile
           </p>
+          <ThemeToggle />
         </div>
       </aside>
     </>

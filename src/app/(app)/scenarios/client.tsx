@@ -21,6 +21,8 @@ import {
   Briefcase,
   CreditCard,
   TrendingUp,
+  LayoutGrid,
+  BookTemplate,
 } from "lucide-react";
 
 interface ScenarioChange {
@@ -106,9 +108,23 @@ export function ScenariosClient({ scenarios }: { scenarios: Scenario[] }) {
             Model life decisions and see their financial impact instantly
           </p>
         </div>
-        <Button onClick={() => setOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" /> New Scenario
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/scenarios/templates">
+            <Button variant="outline" size="sm">
+              <BookTemplate className="h-4 w-4 mr-1.5" /> Templates
+            </Button>
+          </Link>
+          {others.length >= 2 && (
+            <Link href="/scenarios/compare">
+              <Button variant="outline" size="sm">
+                <LayoutGrid className="h-4 w-4 mr-1.5" /> Compare
+              </Button>
+            </Link>
+          )}
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" /> New Scenario
+          </Button>
+        </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
