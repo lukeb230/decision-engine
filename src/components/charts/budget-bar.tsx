@@ -36,13 +36,7 @@ export function BudgetBar({ income, expenses, debtPayments, contributions }: Pro
               key={seg.label}
               className="h-full flex items-center justify-center transition-all duration-300 relative group"
               style={{ width: `${pct}%`, backgroundColor: seg.color }}
-            >
-              {pct > 12 && (
-                <span className="text-[10px] font-medium text-white truncate px-1">
-                  {formatCurrency(seg.amount)}
-                </span>
-              )}
-            </div>
+            />
           );
         })}
       </div>
