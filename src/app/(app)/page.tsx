@@ -82,6 +82,21 @@ export default async function DashboardPage() {
     ...(totalContributions > 0 ? [{ name: "Contributions", amount: totalContributions, color: "#06b6d4" }] : []),
   ];
 
+  // Fixed vs variable expenses
+  const fixedExpenses = expenseInputs.filter((e) => e.isFixed).reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
+  const variableExpenses = expenseInputs.filter((e) => !e.isFixed).reduce((s, e) => s + toMonthly(e.amount, e.frequency), 0);
+
+  // Asset allocation by type
+  const assetTypeMap: Record<string, number> = {};
+  for (const a of assetInputs) {
+    const t = a.type.charAt(0).toUpperCase() + a.type.slice(1);
+    assetTypeMap[t] = (assetTypeMap[t] || 0) + a.value;
+  }
+  const assetAllocation = Object.entries(assetTypeMap).map(([type, value]) => ({ type, value }));
+
+  // Asset breakdown (individual assets by name)
+  const assetBreakdown = assetInputs.map((a) => ({ name: a.name, value: a.value }));
+
   const goalProjections = goalInputs.map((g) => {
     const proj = projectToGoal(state, g);
     return { ...proj, goalId: g.id, goalName: g.name };
@@ -110,6 +125,10 @@ export default async function DashboardPage() {
       milestones={milestones}
       savingsProjection={savingsProjection}
       spendingCategories={spendingCategories}
+      fixedExpenses={fixedExpenses}
+      variableExpenses={variableExpenses}
+      assetAllocation={assetAllocation}
+      assetBreakdown={assetBreakdown}
     />
   );
 }

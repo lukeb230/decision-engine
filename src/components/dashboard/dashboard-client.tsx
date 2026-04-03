@@ -9,6 +9,8 @@ import { ProjectionChart } from "@/components/charts/projection-chart";
 import { MilestoneTimeline } from "@/components/charts/milestone-timeline";
 import { SpendingBreakdown } from "@/components/charts/spending-breakdown";
 import { DTIGauge } from "@/components/charts/dti-gauge";
+import { SpendingDonut } from "@/components/charts/spending-donut";
+import { AssetDonut } from "@/components/charts/asset-donut";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
   DollarSign,
@@ -58,13 +60,17 @@ interface Props {
   dtiRatio: number;
   projections1yr: MonthlySnapshot[];
   projections5yr: MonthlySnapshot[];
-  debts: { id: string; balance: number; originalLoan?: number | null }[];
+  debts: { id: string; name: string; balance: number; originalLoan?: number | null }[];
   debtPayoffs: DebtPayoffResult[];
   goalProjections: GoalProjection[];
   goals: GoalInput[];
   milestones: MilestoneEstimate[];
   savingsProjection: SavingsProjectionPoint[];
   spendingCategories: SpendingCategory[];
+  fixedExpenses: number;
+  variableExpenses: number;
+  assetAllocation: { type: string; value: number }[];
+  assetBreakdown: { name: string; value: number }[];
 }
 
 function StatCard({
@@ -86,7 +92,10 @@ function StatCard({
   );
 }
 
-type DashboardSection = "projection" | "waterfall" | "dti" | "debtPayoff" | "goals" | "milestones" | "aiInsights";
+type DashboardSection =
+  | "projection" | "waterfall" | "dti" | "debtPayoff" | "goals" | "milestones" | "aiInsights"
+  | "incomeVsExpenses" | "expenseDonut" | "fixedVsVariable" | "assetAllocation"
+  | "netWorthBreakdown" | "debtInterestCost" | "goalCountdown" | "debtFreeCountdown";
 
 const sectionLabels: Record<DashboardSection, string> = {
   projection: "Net Worth Projection",
@@ -96,17 +105,41 @@ const sectionLabels: Record<DashboardSection, string> = {
   goals: "Goal Progress",
   milestones: "Milestones",
   aiInsights: "AI Insights",
+  incomeVsExpenses: "Income vs Expenses",
+  expenseDonut: "Expense Donut",
+  fixedVsVariable: "Fixed vs Variable Expenses",
+  assetAllocation: "Asset Allocation",
+  netWorthBreakdown: "Net Worth Breakdown",
+  debtInterestCost: "Debt Interest Cost",
+  goalCountdown: "Goal Countdown",
+  debtFreeCountdown: "Debt-Free Countdown",
 };
 
 const defaultSections: DashboardSection[] = ["projection", "waterfall", "dti", "debtPayoff", "goals", "milestones", "aiInsights"];
 
+const optionalSections: DashboardSection[] = [
+  "incomeVsExpenses", "expenseDonut", "fixedVsVariable", "assetAllocation",
+  "netWorthBreakdown", "debtInterestCost", "goalCountdown", "debtFreeCountdown",
+];
+
+const allSections: DashboardSection[] = [...defaultSections, ...optionalSections];
+
 function loadDashboardConfig(): { sections: DashboardSection[]; hidden: DashboardSection[] } {
-  if (typeof window === "undefined") return { sections: defaultSections, hidden: [] };
+  if (typeof window === "undefined") return { sections: [...allSections], hidden: [...optionalSections] };
   try {
     const saved = localStorage.getItem("dashboard-config");
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Merge any new sections not present in saved config (hidden by default)
+      const missing = allSections.filter((s) => !parsed.sections.includes(s));
+      if (missing.length > 0) {
+        parsed.sections = [...parsed.sections, ...missing];
+        parsed.hidden = [...(parsed.hidden || []), ...missing];
+      }
+      return parsed;
+    }
   } catch {}
-  return { sections: defaultSections, hidden: [] };
+  return { sections: [...allSections], hidden: [...optionalSections] };
 }
 
 function saveDashboardConfig(config: { sections: DashboardSection[]; hidden: DashboardSection[] }) {
@@ -117,6 +150,7 @@ export function DashboardClient({
   monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts,
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
+  fixedExpenses, variableExpenses, assetAllocation, assetBreakdown,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
   const [customizing, setCustomizing] = useState(false);
@@ -307,6 +341,163 @@ export function DashboardClient({
             </CardContent>
           </Card>
         );
+
+      case "incomeVsExpenses": {
+        const totalOutflow = monthlyExpenses + monthlyDebtPayments + totalContributions;
+        const maxBar = Math.max(monthlyIncome, totalOutflow, 1);
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Income vs Expenses</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span>Income</span><span className="font-medium text-emerald-600">{formatCurrency(monthlyIncome)}</span></div>
+                <div className="h-6 bg-muted rounded-md overflow-hidden"><div className="h-full bg-emerald-500 rounded-md transition-all" style={{ width: `${(monthlyIncome / maxBar) * 100}%` }} /></div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span>Total Outflow</span><span className="font-medium text-red-500">{formatCurrency(totalOutflow)}</span></div>
+                <div className="h-6 bg-muted rounded-md overflow-hidden"><div className="h-full bg-red-500 rounded-md transition-all" style={{ width: `${(totalOutflow / maxBar) * 100}%` }} /></div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">{formatCurrency(monthlyIncome - totalOutflow)}/mo surplus</p>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      case "expenseDonut":
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Expense Donut</CardTitle></CardHeader>
+            <CardContent>
+              {spendingCategories.length > 0 ? (
+                <SpendingDonut categories={spendingCategories} totalIncome={monthlyIncome} totalOutflow={monthlyExpenses + monthlyDebtPayments + totalContributions} surplus={freeSurplus} />
+              ) : <p className="text-muted-foreground text-center py-8 text-sm">Add expenses to see breakdown</p>}
+            </CardContent>
+          </Card>
+        );
+
+      case "fixedVsVariable": {
+        const totalExp = fixedExpenses + variableExpenses;
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Fixed vs Variable Expenses</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span>Fixed</span><span className="font-medium">{formatCurrency(fixedExpenses)} ({totalExp > 0 ? Math.round((fixedExpenses / totalExp) * 100) : 0}%)</span></div>
+                <div className="h-4 bg-muted rounded-full overflow-hidden"><div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${totalExp > 0 ? (fixedExpenses / totalExp) * 100 : 0}%` }} /></div>
+              </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs"><span>Variable</span><span className="font-medium">{formatCurrency(variableExpenses)} ({totalExp > 0 ? Math.round((variableExpenses / totalExp) * 100) : 0}%)</span></div>
+                <div className="h-4 bg-muted rounded-full overflow-hidden"><div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${totalExp > 0 ? (variableExpenses / totalExp) * 100 : 0}%` }} /></div>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Fixed expenses are committed. Variable expenses are where you have control.</p>
+            </CardContent>
+          </Card>
+        );
+      }
+
+      case "assetAllocation":
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Asset Allocation</CardTitle></CardHeader>
+            <CardContent>
+              {assetAllocation.length > 0 ? (
+                <AssetDonut data={assetAllocation} total={totalAssets} />
+              ) : <p className="text-muted-foreground text-center py-8 text-sm">Add assets to see allocation</p>}
+            </CardContent>
+          </Card>
+        );
+
+      case "netWorthBreakdown": {
+        const maxVal = Math.max(...assetBreakdown.map((a) => a.value), ...debts.map((d) => d.balance), 1);
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Net Worth Breakdown</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {assetBreakdown.map((a) => (
+                <div key={a.name} className="space-y-0.5">
+                  <div className="flex justify-between text-xs"><span>{a.name}</span><span className="font-medium text-emerald-600">{formatCurrency(a.value)}</span></div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(a.value / maxVal) * 100}%` }} /></div>
+                </div>
+              ))}
+              {debts.map((d) => (
+                <div key={d.id} className="space-y-0.5">
+                  <div className="flex justify-between text-xs"><span>{d.name}</span><span className="font-medium text-red-500">-{formatCurrency(d.balance)}</span></div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-red-500 rounded-full" style={{ width: `${(d.balance / maxVal) * 100}%` }} /></div>
+                </div>
+              ))}
+              {assetBreakdown.length === 0 && debts.length === 0 && <p className="text-muted-foreground text-center py-6 text-sm">Add assets and debts</p>}
+            </CardContent>
+          </Card>
+        );
+      }
+
+      case "debtInterestCost": {
+        const maxInterest = Math.max(...debtPayoffs.map((d) => d.totalInterestPaid === Infinity ? 0 : d.totalInterestPaid), 1);
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Debt Interest Cost</CardTitle>
+              <p className="text-xs text-muted-foreground">Total interest you&apos;ll pay on each debt</p>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {debtPayoffs.filter((d) => d.totalInterestPaid !== Infinity).map((dp) => (
+                <div key={dp.debtId} className="space-y-0.5">
+                  <div className="flex justify-between text-xs"><span>{dp.debtName}</span><span className="font-medium text-red-500">{formatCurrency(dp.totalInterestPaid)}</span></div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden"><div className="h-full bg-red-400 rounded-full" style={{ width: `${(dp.totalInterestPaid / maxInterest) * 100}%` }} /></div>
+                </div>
+              ))}
+              {debtPayoffs.length === 0 && <p className="text-muted-foreground text-center py-6 text-sm">No debts tracked</p>}
+            </CardContent>
+          </Card>
+        );
+      }
+
+      case "goalCountdown":
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Goal Countdown</CardTitle></CardHeader>
+            <CardContent>
+              {goals.length > 0 ? (
+                <div className="grid grid-cols-2 gap-2">
+                  {goals.map((g) => {
+                    const daysLeft = Math.max(0, Math.ceil((new Date(g.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+                    return (
+                      <div key={g.id} className="text-center p-2 rounded-lg bg-muted/50">
+                        <p className="text-lg font-bold">{daysLeft}</p>
+                        <p className="text-[10px] text-muted-foreground truncate">{g.name}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : <p className="text-muted-foreground text-center py-4 text-sm">No goals set</p>}
+            </CardContent>
+          </Card>
+        );
+
+      case "debtFreeCountdown": {
+        const maxMonths = debtPayoffs.length > 0
+          ? Math.max(...debtPayoffs.map((d) => d.monthsToPayoff === Infinity ? 0 : d.monthsToPayoff))
+          : 0;
+        const debtFreeDays = maxMonths > 0 ? Math.round(maxMonths * 30.44) : 0;
+        return (
+          <Card key={section}>
+            <CardHeader className="pb-2"><CardTitle className="text-base">Debt-Free Countdown</CardTitle></CardHeader>
+            <CardContent className="text-center py-2">
+              {debtPayoffs.length > 0 && maxMonths > 0 ? (
+                <>
+                  <p className="text-3xl font-bold text-emerald-600">{debtFreeDays}</p>
+                  <p className="text-xs text-muted-foreground">days until debt-free</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">({formatMonths(maxMonths)})</p>
+                </>
+              ) : debtPayoffs.length === 0 ? (
+                <p className="text-sm text-emerald-600 font-medium">Debt free!</p>
+              ) : (
+                <p className="text-sm text-muted-foreground">Cannot determine at current payments</p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      }
     }
   }
 
@@ -329,7 +520,7 @@ export function DashboardClient({
           <CardContent className="p-4">
             <p className="text-sm font-medium mb-3">Dashboard Sections</p>
             <div className="space-y-1.5">
-              {defaultSections.map((section, idx) => {
+              {allSections.map((section, idx) => {
                 const isHidden = config.hidden.includes(section);
                 return (
                   <div key={section} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isHidden ? "opacity-50 bg-muted/30" : "bg-muted/50"}`}>
@@ -370,7 +561,7 @@ export function DashboardClient({
         {/* MAIN: Sections */}
         <div className="space-y-6">
           {visibleSections
-            .filter((s) => !["milestones", "aiInsights", "dti"].includes(s))
+            .filter((s) => !["milestones", "aiInsights", "dti", "goalCountdown", "debtFreeCountdown"].includes(s))
             .map((section) => renderSection(section))}
         </div>
 
@@ -378,6 +569,8 @@ export function DashboardClient({
         <div className="space-y-4">
           {visibleSections.includes("dti") && renderSection("dti")}
           {visibleSections.includes("milestones") && renderSection("milestones")}
+          {visibleSections.includes("goalCountdown") && renderSection("goalCountdown")}
+          {visibleSections.includes("debtFreeCountdown") && renderSection("debtFreeCountdown")}
           {visibleSections.includes("aiInsights") && renderSection("aiInsights")}
 
           {/* Goal Tracker */}
