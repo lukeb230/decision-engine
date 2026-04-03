@@ -1108,6 +1108,7 @@ export default function OnboardingPage() {
       0
     );
     const totalMonthlyExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+    const totalMonthlyDebtPayments = debts.reduce((s, d) => s + d.minimumPayment, 0);
     const totalDebt = debts.reduce((s, d) => s + d.balance, 0);
     const totalAssets = assets.reduce((s, a) => s + a.value, 0);
 
@@ -1194,12 +1195,12 @@ export default function OnboardingPage() {
               </p>
               <p
                 className={`text-2xl font-bold ${
-                  totalMonthlyIncome - totalMonthlyExpenses >= 0
+                  totalMonthlyIncome - totalMonthlyExpenses - totalMonthlyDebtPayments >= 0
                     ? "text-green-600"
                     : "text-red-600"
                 }`}
               >
-                {formatCurrency(totalMonthlyIncome - totalMonthlyExpenses)}
+                {formatCurrency(totalMonthlyIncome - totalMonthlyExpenses - totalMonthlyDebtPayments)}
               </p>
             </CardContent>
           </Card>

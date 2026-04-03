@@ -208,7 +208,7 @@ export function DashboardClient({
                   ))}
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground">Projected: {formatCurrency(projectedNetWorth5yr)} in 5 years</p>
+              <p className="text-xs text-muted-foreground">Projected: {formatCurrency(projectionRange === "1yr" ? (projections1yr[projections1yr.length - 1]?.netWorth ?? netWorth) : projectedNetWorth5yr)} in {projectionRange === "1yr" ? "1 year" : "5 years"}</p>
             </CardHeader>
             <CardContent>
               {projections.length > 0 ? <ProjectionChart data={projections} /> : <p className="text-muted-foreground text-center py-12">Add financial data to see projections</p>}

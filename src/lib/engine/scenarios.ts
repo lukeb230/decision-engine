@@ -84,10 +84,10 @@ export function compareScenarios(
       debtName: debt.name,
       baselineMonths: basePayoff.monthsToPayoff,
       scenarioMonths: scenPayoff.monthsToPayoff,
-      monthsSaved: isNaN(monthsSaved) ? 0 : monthsSaved,
+      monthsSaved: !isFinite(monthsSaved) || isNaN(monthsSaved) ? 0 : monthsSaved,
       baselineInterest: basePayoff.totalInterestPaid,
       scenarioInterest: scenPayoff.totalInterestPaid,
-      interestSaved: isNaN(interestSaved as number) ? 0 : interestSaved,
+      interestSaved: !isFinite(interestSaved as number) || isNaN(interestSaved as number) ? 0 : interestSaved,
     };
   });
 

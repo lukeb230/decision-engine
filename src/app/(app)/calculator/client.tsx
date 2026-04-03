@@ -525,7 +525,9 @@ export function CalculatorClient({
                   <p className="text-sm text-muted-foreground mt-1">
                     {result.goalDelayMonths === Infinity
                       ? "No surplus left to fund goals"
-                      : `Across ${goalCount} active goal${goalCount !== 1 ? "s" : ""}`}
+                      : result.cashFlowImpact === 0
+                      ? "Savings diverted to this purchase"
+                      : `Ongoing reduced surplus across ${goalCount} goal${goalCount !== 1 ? "s" : ""}`}
                   </p>
                 </CardContent>
               </Card>

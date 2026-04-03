@@ -31,6 +31,8 @@ export default async function GoalsPage() {
   const state = { incomes: incomeInputs, expenses: expenseInputs, debts: debtInputs, assets: assetInputs, goals: [] as typeof goalInputs };
 
   const cashFlow = calculateMonthlyCashFlow(incomeInputs, expenseInputs, debtInputs);
+  const totalContributions = assetInputs.reduce((s, a) => s + (a.monthlyContribution || 0), 0);
+  const freeSurplus = cashFlow - totalContributions;
   const debtPayoffs = debtInputs.map((d) => calculateDebtPayoff(d));
 
   const goalInputs = goals.map((g) => ({
@@ -74,7 +76,7 @@ export default async function GoalsPage() {
     <GoalsClient
       items={goalInputs}
       projections={goalProjections}
-      cashFlow={cashFlow}
+      cashFlow={freeSurplus}
       debtPayoffs={JSON.parse(JSON.stringify(debtPayoffs))}
       debts={debtInputs}
     />

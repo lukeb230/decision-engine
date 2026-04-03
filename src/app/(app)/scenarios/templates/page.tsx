@@ -484,13 +484,13 @@ export default function ScenarioTemplatesPage() {
                     {editedChanges.length} new record{editedChanges.length !== 1 ? "s" : ""}
                   </span>{" "}
                   in your profile
-                  {editedChanges.some((c) => c.data.amount) && (
+                  {editedChanges.some((c) => c.data.amount || c.data.minimumPayment) && (
                     <>
                       {" "}totaling{" "}
                       <span className="font-semibold text-foreground">
                         {formatCurrency(
                           editedChanges.reduce(
-                            (sum, c) => sum + (typeof c.data.amount === "number" ? c.data.amount : 0),
+                            (sum, c) => sum + (typeof c.data.amount === "number" ? c.data.amount : 0) + (typeof c.data.minimumPayment === "number" ? c.data.minimumPayment : 0),
                             0
                           )
                         )}
