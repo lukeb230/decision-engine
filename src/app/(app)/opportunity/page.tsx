@@ -5,6 +5,7 @@ import {
   calculateMonthlyNetIncome,
   calculateMonthlyExpenses,
   calculateMonthlyDebtPayments,
+  toMonthly,
 } from "@/lib/engine/calculator";
 import { OpportunityClient } from "./client";
 
@@ -27,7 +28,7 @@ export default async function OpportunityPage() {
   // Pass existing expenses for the "your expenses" analysis
   const expenseBreakdown = expenseInputs.map((e) => ({
     name: e.name,
-    amount: e.amount,
+    amount: toMonthly(e.amount, e.frequency),
     category: e.category,
   }));
 

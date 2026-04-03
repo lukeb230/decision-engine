@@ -9,7 +9,7 @@ import {
   SavingsProjectionPoint,
 } from "./types";
 
-function toMonthly(amount: number, frequency: string): number {
+export function toMonthly(amount: number, frequency: string): number {
   switch (frequency) {
     case "annual":
       return amount / 12;

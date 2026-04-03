@@ -11,7 +11,9 @@ interface Props {
 
 export function BudgetBar({ income, expenses, debtPayments, contributions }: Props) {
   const surplus = income - expenses - debtPayments - contributions;
-  const total = income > 0 ? income : 1;
+  // When in deficit, use total outflows as denominator so segments fit within the bar
+  const totalOutflows = expenses + debtPayments + contributions + Math.max(0, surplus);
+  const total = Math.max(income, totalOutflows, 1);
 
   const segments = [
     { label: "Expenses", amount: expenses, color: "#ef4444" },

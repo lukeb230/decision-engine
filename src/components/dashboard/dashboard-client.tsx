@@ -126,9 +126,10 @@ export function DashboardClient({
   const projections = projectionRange === "1yr" ? projections1yr : projections5yr;
   const projectedNetWorth5yr = projections5yr[projections5yr.length - 1]?.netWorth ?? netWorth;
 
-  const goalData = goalProjections.map((gp, i) => ({
-    name: gp.goalName, currentAmount: goals[i]?.currentAmount ?? 0, targetAmount: goals[i]?.targetAmount ?? 0, onTrack: gp.onTrack,
-  }));
+  const goalData = goalProjections.map((gp) => {
+    const goal = goals.find((g) => g.id === gp.goalId);
+    return { name: gp.goalName, currentAmount: goal?.currentAmount ?? 0, targetAmount: goal?.targetAmount ?? 0, onTrack: gp.onTrack };
+  });
 
   function toggleSection(section: DashboardSection) {
     const newConfig = { ...config };

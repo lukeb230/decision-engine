@@ -10,10 +10,11 @@ interface Props {
 }
 
 export function ComparisonChart({ baselineData, scenarioData, scenarioName }: Props) {
-  const merged = baselineData.map((b, i) => ({
-    label: b.label,
-    baseline: b.netWorth,
-    scenario: scenarioData[i]?.netWorth ?? 0,
+  const maxLen = Math.max(baselineData.length, scenarioData.length);
+  const merged = Array.from({ length: maxLen }, (_, i) => ({
+    label: baselineData[i]?.label ?? scenarioData[i]?.label ?? `M${i}`,
+    baseline: baselineData[i]?.netWorth ?? baselineData[baselineData.length - 1]?.netWorth ?? 0,
+    scenario: scenarioData[i]?.netWorth ?? scenarioData[scenarioData.length - 1]?.netWorth ?? 0,
   }));
 
   return (

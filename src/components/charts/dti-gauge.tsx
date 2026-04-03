@@ -73,7 +73,7 @@ export function DTIGauge({ ratio }: Props) {
 
         {/* Center text */}
         <text x="100" y="90" textAnchor="middle" className="text-2xl font-bold" fill={color} fontSize="28">
-          {ratio.toFixed(0)}%
+          {clampedRatio.toFixed(0)}%
         </text>
         <text x="100" y="110" textAnchor="middle" fill="hsl(var(--muted-foreground))" fontSize="11">
           {label}

@@ -14,6 +14,7 @@ import {
   calculateSavingsRate,
   estimateMilestones,
   projectSavings,
+  toMonthly,
 } from "@/lib/engine/calculator";
 import { projectMonthly, projectToGoal } from "@/lib/engine/projections";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
@@ -73,7 +74,7 @@ export default async function DashboardPage() {
   const expensesByCategory: Record<string, number> = {};
   for (const e of expenseInputs) {
     const cat = e.category.charAt(0).toUpperCase() + e.category.slice(1);
-    expensesByCategory[cat] = (expensesByCategory[cat] || 0) + e.amount;
+    expensesByCategory[cat] = (expensesByCategory[cat] || 0) + toMonthly(e.amount, e.frequency);
   }
   const spendingCategories = [
     ...Object.entries(expensesByCategory).map(([name, amount]) => ({ name, amount, color: "" })),

@@ -12,6 +12,7 @@ import {
   calculateEmergencyFundMonths,
   calculateSavingsRate,
   calculateDebtPayoff,
+  toMonthly,
 } from "@/lib/engine/calculator";
 
 export async function POST(req: Request) {
@@ -68,10 +69,10 @@ USER'S FINANCIAL SNAPSHOT:
 - Emergency Fund: ${emergencyMonths} months of expenses
 
 INCOME SOURCES (with IDs for actions):
-${incomes.map((i) => `- [id:${i.id}] ${i.name}: $${i.amount} (${i.frequency}, ${i.taxRate}% tax)`).join("\n")}
+${incomes.map((i) => `- [id:${i.id}] ${i.name}: $${toMonthly(i.amount, i.frequency).toFixed(0)}/mo (stored as $${i.amount} ${i.frequency}, ${i.taxRate}% tax)`).join("\n")}
 
 EXPENSES (with IDs for actions):
-${expenses.map((e) => `- [id:${e.id}] ${e.name}: $${e.amount}/mo (${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
+${expenses.map((e) => `- [id:${e.id}] ${e.name}: $${toMonthly(e.amount, e.frequency).toFixed(0)}/mo (stored as $${e.amount} ${e.frequency}, ${e.category}, ${e.isFixed ? "fixed" : "variable"})`).join("\n")}
 
 DEBTS (with IDs for actions):
 ${debtInputs.map((d) => {

@@ -29,6 +29,7 @@ export function formatPercent(value: number): string {
 
 export function formatMonths(months: number): string {
   if (months === Infinity) return "Never";
+  if (months < 0) return "Achieved";
   const years = Math.floor(months / 12);
   const remaining = months % 12;
   if (years === 0) return `${remaining}mo`;
