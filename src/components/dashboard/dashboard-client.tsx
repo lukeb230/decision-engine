@@ -334,30 +334,27 @@ export function DashboardClient({
         </Card>
       )}
 
-      {/* 3-Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr_300px] items-start">
-        {/* LEFT COLUMN: Stats */}
-        <div className="space-y-3">
-          <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
-          <StatCard title="Monthly Income" value={formatCurrency(monthlyIncome)} subtitle="After taxes" icon={DollarSign} trend="up" />
-          <StatCard title="Monthly Outflow" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
-          <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After all commitments" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
-          <StatCard title="Savings Rate" value={`${savingsRate}%`} subtitle={savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Good" : "Needs work"} icon={PiggyBank} trend={savingsRate >= 20 ? "up" : savingsRate >= 10 ? "neutral" : "down"} />
-          <StatCard title="Total Debt" value={formatCurrency(totalDebts)} subtitle={`${formatCurrency(monthlyDebtPayments)}/mo payments`} icon={CreditCard} trend="down" />
-          <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "Fully funded" : emergencyMonths >= 3 ? "Building" : "Below 3mo target"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
-        </div>
+      {/* Stat Cards Row */}
+      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+        <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
+        <StatCard title="Monthly Income" value={formatCurrency(monthlyIncome)} subtitle="After taxes" icon={DollarSign} trend="up" />
+        <StatCard title="Monthly Outflow" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
+        <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After all commitments" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
+        <StatCard title="Savings Rate" value={`${savingsRate}%`} subtitle={savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Good" : "Needs work"} icon={PiggyBank} trend={savingsRate >= 20 ? "up" : savingsRate >= 10 ? "neutral" : "down"} />
+        <StatCard title="Total Debt" value={formatCurrency(totalDebts)} subtitle={`${formatCurrency(monthlyDebtPayments)}/mo payments`} icon={CreditCard} trend="down" />
+        <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "Fully funded" : emergencyMonths >= 3 ? "Building" : "Below 3mo target"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />
+      </div>
 
-        {/* CENTER COLUMN: Sections */}
+      {/* 2-Column Layout: Charts + Sidebar */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_300px] items-start">
+        {/* MAIN: Sections */}
         <div className="space-y-6">
           {visibleSections
             .filter((s) => !["milestones", "aiInsights", "dti"].includes(s))
             .map((section) => renderSection(section))}
-
-          {/* Debt + Goals side by side when both visible */}
-          {visibleSections.includes("debtPayoff") && visibleSections.includes("goals") ? null : null}
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* SIDEBAR */}
         <div className="space-y-4">
           {visibleSections.includes("dti") && renderSection("dti")}
           {visibleSections.includes("milestones") && renderSection("milestones")}
