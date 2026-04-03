@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db";
 import { getActiveProfileId } from "@/lib/profile";
 import { notFound } from "next/navigation";
-import { ScenarioDetailClient } from "./client";
+import ScenarioSandboxClient from "./client";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +32,7 @@ export default async function ScenarioDetailPage({ params }: { params: Promise<{
   };
 
   return (
-    <ScenarioDetailClient
+    <ScenarioSandboxClient
       scenario={JSON.parse(JSON.stringify(scenario))}
       financialState={state}
     />

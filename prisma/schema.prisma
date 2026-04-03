@@ -96,9 +96,10 @@ model Scenario {
   profile     Profile          @relation(fields: [profileId], references: [id], onDelete: Cascade)
   name        String
   description String           @default("")
-  isBaseline  Boolean          @default(false)
-  changes     ScenarioChange[]
-  createdAt   DateTime         @default(now())
+  isBaseline    Boolean          @default(false)
+  snapshotData  String?          // JSON blob of full FinancialState for sandbox mode
+  changes       ScenarioChange[]
+  createdAt     DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 }
 

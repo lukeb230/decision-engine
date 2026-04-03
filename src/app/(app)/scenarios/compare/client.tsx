@@ -57,6 +57,7 @@ interface Scenario {
   name: string;
   description: string;
   isBaseline: boolean;
+  snapshotData: string | null;
   changes: ScenarioChange[];
 }
 
@@ -205,7 +206,9 @@ export function CompareClient({ scenarios, financialState }: CompareClientProps)
   const scenarioMetricsMap = useMemo(() => {
     const map = new Map<string, ScenarioMetrics>();
     for (const scenario of selectedScenarios) {
-      const modifiedState = applyScenarioChanges(financialState, scenario.changes);
+      const modifiedState = scenario.snapshotData
+        ? JSON.parse(scenario.snapshotData) as FinancialState
+        : applyScenarioChanges(financialState, scenario.changes);
       map.set(scenario.id, computeMetrics(modifiedState));
     }
     return map;

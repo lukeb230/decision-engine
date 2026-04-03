@@ -15,11 +15,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const profileId = await getActiveProfileIdFromRequest(req);
   const body = await req.json();
-  const { changes, ...scenarioData } = body;
+  const { changes, snapshotData, ...scenarioData } = body;
   const item = await prisma.scenario.create({
     data: {
       ...scenarioData,
       profileId,
+      snapshotData: snapshotData ? JSON.stringify(snapshotData) : undefined,
       changes: changes ? { create: changes } : undefined,
     },
     include: { changes: true },
@@ -29,13 +30,14 @@ export async function POST(req: Request) {
 
 export async function PUT(req: Request) {
   const body = await req.json();
-  const { id, changes, ...data } = body;
+  const { id, changes, snapshotData, ...data } = body;
   // Delete old changes and create new ones
   await prisma.scenarioChange.deleteMany({ where: { scenarioId: id } });
   const item = await prisma.scenario.update({
     where: { id },
     data: {
       ...data,
+      snapshotData: snapshotData ? JSON.stringify(snapshotData) : undefined,
       changes: changes ? { create: changes } : undefined,
     },
     include: { changes: true },
