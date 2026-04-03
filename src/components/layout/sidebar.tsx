@@ -17,6 +17,7 @@ import {
   Users,
   Calculator,
   TrendingDown,
+  ClipboardCheck,
 } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "./theme-toggle";
@@ -31,6 +32,7 @@ const navigation = [
   { name: "Scenarios", href: "/scenarios", icon: GitBranch },
   { name: "Afford It?", href: "/calculator", icon: Calculator },
   { name: "Opportunity Cost", href: "/opportunity", icon: TrendingDown },
+  { name: "Monthly Check-in", href: "/checkin", icon: ClipboardCheck },
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 

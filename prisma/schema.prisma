@@ -21,6 +21,7 @@ model Profile {
   assets    Asset[]
   goals     Goal[]
   scenarios Scenario[]
+  checkins  MonthlyCheckin[]
 }
 
 model Income {
@@ -115,4 +116,38 @@ model ScenarioChange {
   oldValue   String
   newValue   String
   createdAt  DateTime @default(now())
+}
+
+model MonthlyCheckin {
+  id                 String        @id @default(cuid())
+  profileId          String
+  profile            Profile       @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  month              Int
+  year               Int
+  totalIncome        Float
+  totalExpenses      Float
+  expensesByCategory String        // JSON: { housing: 1200, food: 450, ... }
+  netWorth           Float?
+  overallGrade       String        // A, B, C, D, F
+  gradeDetails       String        // JSON: { housing: { budgeted: 1500, actual: 1200, grade: "A" }, ... }
+  aiSuggestions      String?       // JSON from Claude response
+  transactions       Transaction[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@unique([profileId, month, year])
+}
+
+model Transaction {
+  id          String         @id @default(cuid())
+  checkinId   String
+  checkin     MonthlyCheckin @relation(fields: [checkinId], references: [id], onDelete: Cascade)
+  date        DateTime
+  description String
+  amount      Float
+  isIncome    Boolean        @default(false)
+  category    String         @default("other")
+  source      String
+  excluded    Boolean        @default(false)
+  createdAt   DateTime       @default(now())
 }
