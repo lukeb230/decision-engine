@@ -190,11 +190,12 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
     const savingsRate = calculateSavingsRate(s.incomes, s.expenses, s.debts);
     const totalDebt = s.debts.reduce((sum, d) => sum + d.balance, 0);
     const totalContributions = s.assets.reduce((sum, a) => sum + (a.monthlyContribution || 0), 0);
+    const freeCashFlow = cashFlow - totalContributions;
     const outflow = expenses + debtPayments + totalContributions;
     const debtPayoffs = s.debts.map((d) => calculateDebtPayoff(d));
     const projection = projectMonthly(s, 60);
     const nw5yr = projection[projection.length - 1]?.netWorth ?? netWorth;
-    return { cashFlow, netIncome, expenses, debtPayments, netWorth, savingsRate, totalDebt, outflow, debtPayoffs, projection, nw5yr };
+    return { cashFlow, freeCashFlow, netIncome, expenses, debtPayments, netWorth, savingsRate, totalDebt, totalContributions, outflow, debtPayoffs, projection, nw5yr };
   }
 
   // ---- Baseline metrics (computed once) ------------------------------------
@@ -268,7 +269,7 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
 
   // ---- Impact text ---------------------------------------------------------
   const impactText = useMemo(() => {
-    const cashDiff = sandboxMetrics.cashFlow - baselineMetrics.cashFlow;
+    const cashDiff = sandboxMetrics.freeCashFlow - baselineMetrics.freeCashFlow;
     const nwDiff = sandboxMetrics.netWorth - baselineMetrics.netWorth;
     const parts: string[] = [];
     if (Math.abs(cashDiff) > 0) {
@@ -285,7 +286,7 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
     return parts.join(" | ");
   }, [sandboxMetrics, baselineMetrics]);
 
-  const isPositiveImpact = sandboxMetrics.cashFlow >= baselineMetrics.cashFlow;
+  const isPositiveImpact = sandboxMetrics.freeCashFlow >= baselineMetrics.freeCashFlow;
 
   // ---- Mutation helpers ----------------------------------------------------
   function updateIncome(id: string, field: string, value: string | number) {
@@ -953,8 +954,8 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
               <CardContent className="grid grid-cols-2 gap-3">
                 <MetricCard
                   label="Cash Flow"
-                  baseline={baselineMetrics.cashFlow}
-                  sandbox={sandboxMetrics.cashFlow}
+                  baseline={baselineMetrics.freeCashFlow}
+                  sandbox={sandboxMetrics.freeCashFlow}
                 />
                 <MetricCard
                   label="Net Worth"
