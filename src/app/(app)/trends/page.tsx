@@ -5,6 +5,19 @@ import { TrendsClient } from "./client";
 
 export const dynamic = "force-dynamic";
 
+// Handle double-stringified JSON from earlier bug
+function safeParseJSON(str: string | null | undefined): Record<string, unknown> {
+  if (!str) return {};
+  try {
+    let parsed = JSON.parse(str);
+    // If result is still a string, it was double-stringified — parse again
+    if (typeof parsed === "string") parsed = JSON.parse(parsed);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
 export default async function TrendsPage() {
   const profileId = await getActiveProfileId();
 
@@ -23,8 +36,8 @@ export default async function TrendsPage() {
   const parsed = checkins.map((c) => ({
     id: c.id, month: c.month, year: c.year, totalIncome: c.totalIncome,
     totalExpenses: c.totalExpenses, overallGrade: c.overallGrade,
-    expensesByCategory: JSON.parse(c.expensesByCategory || "{}") as Record<string, number>,
-    gradeDetails: JSON.parse(c.gradeDetails || "{}") as Record<string, { budgeted: number; actual: number; grade: string }>,
+    expensesByCategory: safeParseJSON(c.expensesByCategory) as Record<string, number>,
+    gradeDetails: safeParseJSON(c.gradeDetails) as Record<string, { budgeted: number; actual: number; grade: string }>,
   }));
 
   // Build budget map

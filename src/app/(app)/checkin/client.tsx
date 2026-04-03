@@ -436,8 +436,8 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
           totalIncome,
           totalExpenses,
           overallGrade: grades?.overallGrade ?? "",
-          expensesByCategory: JSON.stringify(expensesByCategory),
-          gradeDetails: JSON.stringify(grades),
+          expensesByCategory,
+          gradeDetails: grades,
         }),
       });
       setSaved(true);
@@ -1112,10 +1112,14 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
               let parsedExpenses: Record<string, number> = {};
               let parsedGrades: CheckinGrade | null = null;
               try {
-                parsedExpenses = JSON.parse(ci.expensesByCategory);
+                let exp = JSON.parse(ci.expensesByCategory);
+                if (typeof exp === "string") exp = JSON.parse(exp);
+                parsedExpenses = exp;
               } catch {}
               try {
-                parsedGrades = JSON.parse(ci.gradeDetails);
+                let gd = JSON.parse(ci.gradeDetails);
+                if (typeof gd === "string") gd = JSON.parse(gd);
+                parsedGrades = gd;
               } catch {}
 
               return (
