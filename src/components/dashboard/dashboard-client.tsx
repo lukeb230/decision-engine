@@ -335,7 +335,7 @@ export function DashboardClient({
       )}
 
       {/* 3-Column Layout */}
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr_300px]">
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr_300px] items-start">
         {/* LEFT COLUMN: Stats */}
         <div className="space-y-3">
           <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
@@ -350,7 +350,7 @@ export function DashboardClient({
         {/* CENTER COLUMN: Sections */}
         <div className="space-y-6">
           {visibleSections
-            .filter((s) => !["milestones", "aiInsights"].includes(s))
+            .filter((s) => !["milestones", "aiInsights", "dti"].includes(s))
             .map((section) => renderSection(section))}
 
           {/* Debt + Goals side by side when both visible */}
