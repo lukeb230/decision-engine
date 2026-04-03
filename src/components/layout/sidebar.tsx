@@ -18,6 +18,7 @@ import {
   Calculator,
   TrendingDown,
   ClipboardCheck,
+  BarChart3,
 } from "lucide-react";
 import { useState } from "react";
 import { ThemeToggle } from "./theme-toggle";
@@ -33,6 +34,7 @@ const navigation = [
   { name: "Afford It?", href: "/calculator", icon: Calculator },
   { name: "Opportunity Cost", href: "/opportunity", icon: TrendingDown },
   { name: "Monthly Check-in", href: "/checkin", icon: ClipboardCheck },
+  { name: "Spending Trends", href: "/trends", icon: BarChart3 },
   { name: "AI Advisor", href: "/advisor", icon: Bot },
 ];
 
