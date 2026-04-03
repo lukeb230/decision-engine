@@ -45,7 +45,7 @@ export function DTIGauge({ ratio }: Props) {
       : "Critical";
 
   // Needle position
-  const needle = percentToPoint(clampedRatio, 70);
+  const needle = percentToPoint(clampedRatio, 80);
 
   return (
     <div className="flex flex-col items-center">
