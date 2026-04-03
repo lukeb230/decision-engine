@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Home, Car, Utensils, Zap, Tv, ShoppingBag, Shield, Fuel } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface Expense {
@@ -25,6 +25,17 @@ interface Expense {
 const categories = [
   "housing", "transport", "food", "utilities",
   "subscriptions", "entertainment", "insurance", "other",
+];
+
+const presets = [
+  { name: "Rent/Mortgage", category: "housing", isFixed: true, icon: Home },
+  { name: "Utilities", category: "utilities", isFixed: true, icon: Zap },
+  { name: "Car Insurance", category: "insurance", isFixed: true, icon: Shield },
+  { name: "Gas/Fuel", category: "transport", isFixed: false, icon: Fuel },
+  { name: "Groceries", category: "food", isFixed: false, icon: ShoppingBag },
+  { name: "Dining Out", category: "food", isFixed: false, icon: Utensils },
+  { name: "Subscriptions", category: "subscriptions", isFixed: true, icon: Tv },
+  { name: "Car Payment", category: "transport", isFixed: true, icon: Car },
 ];
 
 function toMonthly(amount: number, frequency: string): number {
@@ -51,6 +62,18 @@ export function ExpensesClient({ items }: { items: Expense[] }) {
   function openNew() {
     setEditing(null);
     setForm({ name: "", amount: "", frequency: "monthly", category: "other", isFixed: "true" });
+    setOpen(true);
+  }
+
+  function openFromPreset(preset: typeof presets[0]) {
+    setEditing(null);
+    setForm({
+      name: preset.name,
+      amount: "",
+      frequency: "monthly",
+      category: preset.category,
+      isFixed: String(preset.isFixed),
+    });
     setOpen(true);
   }
 
@@ -114,6 +137,29 @@ export function ExpensesClient({ items }: { items: Expense[] }) {
               <DialogTitle>{editing ? "Edit" : "Add"} Expense</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 pt-4">
+              {/* Quick presets — only show when adding, not editing */}
+              {!editing && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-2">Quick add:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {presets.map((p) => (
+                      <button
+                        key={p.name}
+                        onClick={() => setForm({ ...form, name: p.name, category: p.category, isFixed: String(p.isFixed) })}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors ${
+                          form.name === p.name ? "bg-primary text-primary-foreground border-primary" : "hover:bg-accent"
+                        }`}
+                      >
+                        <p.icon className="h-3 w-3" />
+                        {p.name}
+                        <Badge variant={p.isFixed ? "default" : "outline"} className="text-[9px] px-1 py-0 ml-0.5">
+                          {p.isFixed ? "F" : "V"}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div>
                 <Label>Name</Label>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Rent" />
