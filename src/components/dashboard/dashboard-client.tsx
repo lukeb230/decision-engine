@@ -48,6 +48,8 @@ interface Props {
   monthlyExpenses: number;
   monthlyDebtPayments: number;
   cashFlow: number;
+  freeSurplus: number;
+  totalContributions: number;
   netWorth: number;
   totalAssets: number;
   totalDebts: number;
@@ -111,7 +113,7 @@ function saveDashboardConfig(config: { sections: DashboardSection[]; hidden: Das
 }
 
 export function DashboardClient({
-  monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, netWorth, totalAssets, totalDebts,
+  monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts,
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, waterfallItems,
 }: Props) {
@@ -338,8 +340,8 @@ export function DashboardClient({
         <div className="space-y-3">
           <StatCard title="Net Worth" value={formatCurrency(netWorth)} subtitle={`${formatCurrency(totalAssets)} assets`} icon={TrendingUp} trend={netWorth >= 0 ? "up" : "down"} />
           <StatCard title="Monthly Income" value={formatCurrency(monthlyIncome)} subtitle="After taxes" icon={DollarSign} trend="up" />
-          <StatCard title="Monthly Outflow" value={formatCurrency(monthlyExpenses + monthlyDebtPayments)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt`} icon={ArrowDownRight} trend="down" />
-          <StatCard title="Free Cash Flow" value={formatCurrency(cashFlow)} subtitle={cashFlow > 0 ? "Available to save/invest" : "Spending exceeds income"} icon={ArrowUpRight} trend={cashFlow >= 0 ? "up" : "down"} />
+          <StatCard title="Monthly Outflow" value={formatCurrency(monthlyExpenses + monthlyDebtPayments + totalContributions)} subtitle={`${formatCurrency(monthlyExpenses)} bills + ${formatCurrency(monthlyDebtPayments)} debt${totalContributions > 0 ? ` + ${formatCurrency(totalContributions)} invest` : ""}`} icon={ArrowDownRight} trend="down" />
+          <StatCard title="Free Surplus" value={formatCurrency(freeSurplus)} subtitle={freeSurplus > 0 ? "After all commitments" : "Over-committed"} icon={ArrowUpRight} trend={freeSurplus >= 0 ? "up" : "down"} />
           <StatCard title="Savings Rate" value={`${savingsRate}%`} subtitle={savingsRate >= 20 ? "Excellent" : savingsRate >= 10 ? "Good" : "Needs work"} icon={PiggyBank} trend={savingsRate >= 20 ? "up" : savingsRate >= 10 ? "neutral" : "down"} />
           <StatCard title="Total Debt" value={formatCurrency(totalDebts)} subtitle={`${formatCurrency(monthlyDebtPayments)}/mo payments`} icon={CreditCard} trend="down" />
           <StatCard title="Emergency Fund" value={emergencyMonths === Infinity ? "N/A" : `${emergencyMonths} mo`} subtitle={emergencyMonths >= 6 ? "Fully funded" : emergencyMonths >= 3 ? "Building" : "Below 3mo target"} icon={Shield} trend={emergencyMonths >= 6 ? "up" : emergencyMonths >= 3 ? "neutral" : "down"} />

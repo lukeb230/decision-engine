@@ -189,7 +189,10 @@ export function projectSavings(
       const investmentContributions = assets
         .filter((a) => a.type === "investment")
         .reduce((sum, a) => sum + (a.monthlyContribution || 0), 0);
-      savings = savings * (1 + savingsMonthlyRate) + savingsContributions + Math.max(0, monthlySurplus);
+      const totalContributions = assets.reduce((sum, a) => sum + (a.monthlyContribution || 0), 0);
+      // Surplus after contributions are already accounted for
+      const adjustedSurplus = Math.max(0, monthlySurplus - totalContributions);
+      savings = savings * (1 + savingsMonthlyRate) + savingsContributions + adjustedSurplus;
       investments = investments * (1 + investmentMonthlyRate) + investmentContributions;
     }
 
@@ -215,7 +218,10 @@ export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
   const netIncome = calculateMonthlyNetIncome(state.incomes);
   const totalExpenses = calculateMonthlyExpenses(state.expenses);
   const debtPayments = calculateMonthlyDebtPayments(state.debts);
-  const cashFlow = netIncome - totalExpenses - debtPayments;
+  const totalContributions = state.assets.reduce(
+    (sum, a) => sum + (a.monthlyContribution || 0), 0
+  );
+  const cashFlow = netIncome - totalExpenses - debtPayments - totalContributions;
   const currentNetWorth = calculateNetWorth(state.assets, state.debts);
   const totalDebt = calculateTotalDebts(state.debts);
   const totalAssets = calculateTotalAssets(state.assets);

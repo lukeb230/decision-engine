@@ -53,6 +53,8 @@ export default async function DashboardPage() {
   const monthlyExpenses = calculateMonthlyExpenses(expenseInputs);
   const monthlyDebtPayments = calculateMonthlyDebtPayments(debtInputs);
   const cashFlow = calculateMonthlyCashFlow(incomeInputs, expenseInputs, debtInputs);
+  const totalContributions = assetInputs.reduce((s, a) => s + (a.monthlyContribution || 0), 0);
+  const freeSurplus = cashFlow - totalContributions; // What's left after all commitments
   const netWorth = calculateNetWorth(assetInputs, debtInputs);
   const totalAssets = calculateTotalAssets(assetInputs);
   const totalDebts = calculateTotalDebts(debtInputs);
@@ -74,13 +76,16 @@ export default async function DashboardPage() {
     expensesByCategory[cat] = (expensesByCategory[cat] || 0) + e.amount;
   }
 
+  // Build waterfall: income flows through expenses -> debts -> contributions -> surplus
+  // Each bar subtracts from the running total, surplus is what remains
   const waterfallItems = [
     { name: "Net Income", amount: monthlyIncome, type: "income" as const },
     ...Object.entries(expensesByCategory)
       .sort((a, b) => b[1] - a[1])
       .map(([name, amount]) => ({ name, amount: -amount, type: "expense" as const })),
     ...debtInputs.map((d) => ({ name: d.name, amount: -d.minimumPayment, type: "debt" as const })),
-    { name: "Surplus", amount: cashFlow, type: "surplus" as const },
+    ...(totalContributions > 0 ? [{ name: "Contributions", amount: -totalContributions, type: "expense" as const }] : []),
+    { name: "Free Surplus", amount: freeSurplus, type: "surplus" as const },
   ];
 
   const goalProjections = goalInputs.map((g) => {
@@ -94,6 +99,8 @@ export default async function DashboardPage() {
       monthlyExpenses={monthlyExpenses}
       monthlyDebtPayments={monthlyDebtPayments}
       cashFlow={cashFlow}
+      freeSurplus={freeSurplus}
+      totalContributions={totalContributions}
       netWorth={netWorth}
       totalAssets={totalAssets}
       totalDebts={totalDebts}

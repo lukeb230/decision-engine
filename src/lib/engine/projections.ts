@@ -7,13 +7,23 @@ import {
 import {
   calculateMonthlyNetIncome,
   calculateMonthlyExpenses,
-  calculateMonthlyDebtPayments,
 } from "./calculator";
 
+/**
+ * Projects financial state forward month by month.
+ *
+ * Key accounting rules:
+ * - Net cash flow = income - expenses - debt payments (dynamic per month)
+ * - Monthly asset contributions come OUT of cash flow (not free money)
+ * - Remaining surplus after contributions goes to savings
+ * - When a debt is paid off, its payment frees up as additional surplus
+ * - Asset growth rates compound monthly on current balance
+ */
 export function projectMonthly(state: FinancialState, months: number): MonthlySnapshot[] {
   const snapshots: MonthlySnapshot[] = [];
   const now = new Date();
 
+  // Clone balances for mutation
   const debtBalances: Record<string, number> = {};
   state.debts.forEach((d) => (debtBalances[d.id] = d.balance));
 
@@ -22,36 +32,56 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
 
   const monthlyIncome = calculateMonthlyNetIncome(state.incomes);
   const monthlyExpenses = calculateMonthlyExpenses(state.expenses);
-  const monthlyDebtPayments = calculateMonthlyDebtPayments(state.debts);
-  const netCashFlow = monthlyIncome - monthlyExpenses - monthlyDebtPayments;
+
+  // Total committed monthly contributions across all assets
+  const totalContributions = state.assets.reduce(
+    (sum, a) => sum + (a.monthlyContribution || 0),
+    0
+  );
 
   for (let m = 0; m <= months; m++) {
     const date = new Date(now.getFullYear(), now.getMonth() + m, 1);
     const label = date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 
     if (m > 0) {
-      // Apply interest and payments to debts
+      // Calculate actual debt payments this month (may be less if debt is paid off)
+      let actualDebtPayments = 0;
       for (const debt of state.debts) {
-        if (debtBalances[debt.id] > 0) {
+        if (debtBalances[debt.id] > 0.01) {
           const monthlyRate = debt.interestRate / 100 / 12;
-          debtBalances[debt.id] += debtBalances[debt.id] * monthlyRate;
-          debtBalances[debt.id] -= debt.minimumPayment;
-          if (debtBalances[debt.id] < 0) debtBalances[debt.id] = 0;
+          const interest = debtBalances[debt.id] * monthlyRate;
+          debtBalances[debt.id] += interest;
+
+          // Pay the minimum or remaining balance, whichever is less
+          const payment = Math.min(debt.minimumPayment, debtBalances[debt.id]);
+          debtBalances[debt.id] -= payment;
+          actualDebtPayments += payment;
+
+          if (debtBalances[debt.id] < 0.01) debtBalances[debt.id] = 0;
         }
       }
 
-      // Grow assets and apply monthly contributions
+      // Apply growth to assets (compound interest on existing balance)
       for (const asset of state.assets) {
         const monthlyRate = asset.growthRate / 100 / 12;
         assetValues[asset.id] *= 1 + monthlyRate;
-        assetValues[asset.id] += asset.monthlyContribution || 0;
       }
 
-      // Add surplus cash flow to first savings asset
-      if (netCashFlow > 0) {
+      // Apply monthly contributions to assets (these come from cash flow)
+      for (const asset of state.assets) {
+        if (asset.monthlyContribution && asset.monthlyContribution > 0) {
+          assetValues[asset.id] += asset.monthlyContribution;
+        }
+      }
+
+      // Calculate remaining surplus AFTER contributions and debt payments
+      const surplus = monthlyIncome - monthlyExpenses - actualDebtPayments - totalContributions;
+
+      // Only add positive surplus to savings
+      if (surplus > 0) {
         const savingsAsset = state.assets.find((a) => a.type === "savings");
         if (savingsAsset) {
-          assetValues[savingsAsset.id] += netCashFlow;
+          assetValues[savingsAsset.id] += surplus;
         }
       }
     }
@@ -59,13 +89,21 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
     const totalDebtBalance = Object.values(debtBalances).reduce((s, v) => s + v, 0);
     const totalAssetValue = Object.values(assetValues).reduce((s, v) => s + v, 0);
 
+    // Recalculate actual debt payments for the snapshot
+    const currentDebtPayments = state.debts.reduce(
+      (sum, d) => sum + (debtBalances[d.id] > 0.01 ? d.minimumPayment : 0),
+      0
+    );
+
     snapshots.push({
       month: m,
       label,
       totalIncome: Math.round(monthlyIncome * 100) / 100,
       totalExpenses: Math.round(monthlyExpenses * 100) / 100,
-      totalDebtPayments: Math.round(monthlyDebtPayments * 100) / 100,
-      netCashFlow: Math.round(netCashFlow * 100) / 100,
+      totalDebtPayments: Math.round(currentDebtPayments * 100) / 100,
+      netCashFlow: Math.round(
+        (monthlyIncome - monthlyExpenses - currentDebtPayments - totalContributions) * 100
+      ) / 100,
       totalDebtBalance: Math.round(totalDebtBalance * 100) / 100,
       totalAssetValue: Math.round(totalAssetValue * 100) / 100,
       netWorth: Math.round((totalAssetValue - totalDebtBalance) * 100) / 100,
@@ -77,11 +115,24 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
   return snapshots;
 }
 
-export function projectToGoal(state: FinancialState, goal: { targetAmount: number; currentAmount: number; targetDate: string }): GoalProjection & { goalId: string; goalName: string } {
+/**
+ * Estimates when a goal will be reached based on available surplus.
+ * Surplus = income - expenses - debt payments - asset contributions.
+ */
+export function projectToGoal(
+  state: FinancialState,
+  goal: { targetAmount: number; currentAmount: number; targetDate: string }
+): GoalProjection & { goalId: string; goalName: string } {
   const monthlyIncome = calculateMonthlyNetIncome(state.incomes);
   const monthlyExpenses = calculateMonthlyExpenses(state.expenses);
-  const monthlyDebtPayments = calculateMonthlyDebtPayments(state.debts);
-  const surplus = monthlyIncome - monthlyExpenses - monthlyDebtPayments;
+  const monthlyDebtPayments = state.debts.reduce((s, d) => s + d.minimumPayment, 0);
+  const totalContributions = state.assets.reduce(
+    (sum, a) => sum + (a.monthlyContribution || 0),
+    0
+  );
+
+  // Available surplus after all committed outflows
+  const surplus = monthlyIncome - monthlyExpenses - monthlyDebtPayments - totalContributions;
 
   const remaining = goal.targetAmount - goal.currentAmount;
   const estimatedMonths = surplus > 0 ? Math.ceil(remaining / surplus) : Infinity;
@@ -103,7 +154,10 @@ export function projectToGoal(state: FinancialState, goal: { targetAmount: numbe
     goalId: "",
     goalName: "",
     estimatedMonths,
-    estimatedDate: estimatedMonths === Infinity ? "Never" : estimatedDate.toISOString().split("T")[0],
+    estimatedDate:
+      estimatedMonths === Infinity
+        ? "Never"
+        : estimatedDate.toISOString().split("T")[0],
     monthlySavingsNeeded: Math.round(monthlySavingsNeeded * 100) / 100,
     onTrack: estimatedMonths <= monthsUntilTarget,
   };
