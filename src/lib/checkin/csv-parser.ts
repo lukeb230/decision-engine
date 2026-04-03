@@ -46,14 +46,39 @@ function parseDate(dateStr: string): string | null {
 }
 
 function detectFormat(headers: string[]): BankFormat {
-  const joined = headers.map((h) => h.toLowerCase()).join("|");
+  const lower = headers.map((h) => h.toLowerCase().trim());
+  const joined = lower.join("|");
 
+  // Chase checking: has "Details", "Posting Date", "Balance"
   if (joined.includes("details") && joined.includes("posting date") && joined.includes("balance")) return "chase_checking";
+
+  // Chase credit: has "Transaction Date", "Post Date", "Category", "Type"
   if (joined.includes("transaction date") && joined.includes("post date") && joined.includes("category") && joined.includes("type")) return "chase_credit";
-  if (joined.includes("card member") || joined.includes("account #")) return "amex";
+
+  // Amex: has "Card Member" or "Account #" (5+ column format)
+  if (joined.includes("card member") || joined.includes("account #") || joined.includes("account number")) return "amex";
+
+  // NFCU checking: has separate "Debit" and "Credit" columns
   if (joined.includes("debit") && joined.includes("credit")) return "nfcu_checking";
+
+  // NFCU credit: has "Transaction Date" + "Post Date" (without Category/Type)
   if (joined.includes("transaction date") && joined.includes("post date")) return "nfcu_credit";
+
+  // Amex alternate formats: "Date, Description, Amount" (3 cols) or with Category/Type
+  // Check if it's exactly 3 columns: Date, Description, Amount — could be USAA or Amex
+  // Amex 4-col: Date, Description, Category, Type, Amount
+  // We'll check if there's NO "Original Description" (which is USAA-specific)
+  if (lower.length <= 5 && lower[0] === "date" && !joined.includes("original description")) {
+    // If 3 columns: Date, Description, Amount — ambiguous, but we'll treat as Amex
+    // since USAA typically has more columns or "Original Description"
+    if (lower.length === 3 && lower[1] === "description" && lower[2] === "amount") return "amex";
+    // Amex with Category: Date, Description, Category, Type, Amount
+    if (lower.includes("category") && lower.includes("type") && lower.includes("amount")) return "amex";
+  }
+
+  // USAA: has "Date", "Description", "Amount" (often with "Original Description" and "Category")
   if (joined.includes("date") && joined.includes("description") && joined.includes("amount")) return "usaa";
+
   return "unknown";
 }
 
@@ -119,13 +144,34 @@ function parseNFCUCredit(cols: string[]): { date: string | null; desc: string; a
   return { date: parseDate(cols[0]), desc: cols[2], amount: parseFloat(cols[3]) };
 }
 
-function parseAmex(cols: string[]): { date: string | null; desc: string; amount: number } | null {
-  // Date, Description, Card Member, Account #, Amount
-  // Amex: charges are POSITIVE, payments/credits are NEGATIVE (opposite of most banks)
-  if (cols.length < 5) return null;
-  const amount = parseFloat(cols[4]);
-  if (isNaN(amount)) return null;
-  return { date: parseDate(cols[0]), desc: cols[1], amount: amount };
+function parseAmex(cols: string[], headers: string[]): { date: string | null; desc: string; amount: number } | null {
+  // Multiple Amex formats:
+  // Format A (5+ cols): Date, Description, Card Member, Account #, Amount
+  // Format B (5 cols): Date, Description, Category, Type, Amount
+  // Format C (3 cols): Date, Description, Amount
+  // Format D (7+ cols): Date, Ref, Amount, Payee, Memo...
+
+  const lower = headers.map((h) => h.toLowerCase().trim());
+
+  // Find the Amount column by header name
+  const amountIdx = lower.indexOf("amount");
+  const dateIdx = lower.indexOf("date");
+  const descIdx = lower.indexOf("description");
+
+  // If we found named columns, use them
+  if (amountIdx >= 0 && dateIdx >= 0) {
+    const desc = descIdx >= 0 ? cols[descIdx] : cols[1];
+    const amount = parseFloat(cols[amountIdx]);
+    if (isNaN(amount)) return null;
+    return { date: parseDate(cols[dateIdx]), desc, amount };
+  }
+
+  // Fallback: assume Date(0), Description(1), Amount(2) for 3-col format
+  if (cols.length >= 3) {
+    return { date: parseDate(cols[0]), desc: cols[1], amount: parseFloat(cols[2]) };
+  }
+
+  return null;
 }
 
 export function parseCSV(csvText: string): ParseResult {
@@ -155,9 +201,9 @@ export function parseCSV(csvText: string): ParseResult {
         case "chase_checking": parsed = parseChaseChecking(cols); break;
         case "chase_credit": parsed = parseChaseCredit(cols); break;
         case "usaa": parsed = parseUSAA(cols, headerCount); break;
-        case "nfcu_checking": parsed = parseNFCUChecking(cols, headers) as any; break;
+        case "nfcu_checking": parsed = parseNFCUChecking(cols, headers) as typeof parsed; break;
         case "nfcu_credit": parsed = parseNFCUCredit(cols); break;
-        case "amex": parsed = parseAmex(cols); break;
+        case "amex": parsed = parseAmex(cols, headers); break;
       }
 
       if (!parsed || !parsed.date || isNaN(parsed.amount)) {
@@ -165,9 +211,10 @@ export function parseCSV(csvText: string): ParseResult {
         continue;
       }
 
-      // For most formats: negative = expense (outflow), positive = income (inflow)
-      // Amex is inverted: positive = charge (expense), negative = payment/credit (income)
-      // NFCU checking uses separate debit/credit columns (handled in parser)
+      // Determine income vs expense based on bank format:
+      // Most banks: negative = expense, positive = income
+      // Amex: POSITIVE = charge (expense), NEGATIVE = payment/credit (income)
+      // NFCU checking: uses separate debit/credit columns (handled in parser)
       const isIncome = parsed.isIncome !== undefined
         ? parsed.isIncome
         : format === "amex"
