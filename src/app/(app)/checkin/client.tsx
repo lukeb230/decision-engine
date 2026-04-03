@@ -37,6 +37,8 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { parseCSV } from "@/lib/checkin/csv-parser";
+import { parsePDF } from "@/lib/checkin/pdf-parser";
+import { autoCategory } from "@/lib/checkin/category-mapper";
 import type {
   NormalizedTransaction,
   ParseResult,
@@ -208,35 +210,101 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
   // File handling
   // ---------------------------------------------------------------------------
 
+  function autoDetectMonth(result: ParseResult) {
+    if (result.transactions.length > 0) {
+      const monthCounts: Record<string, number> = {};
+      result.transactions.forEach((t) => {
+        const d = new Date(t.date);
+        const key = `${d.getMonth() + 1}-${d.getFullYear()}`;
+        monthCounts[key] = (monthCounts[key] || 0) + 1;
+      });
+      const best = Object.entries(monthCounts).sort(
+        (a, b) => b[1] - a[1]
+      )[0];
+      if (best) {
+        const [m, y] = best[0].split("-").map(Number);
+        setSelectedMonth(m);
+        setSelectedYear(y);
+      }
+    }
+  }
+
   function handleFiles(fileList: FileList | null) {
     if (!fileList) return;
-    Array.from(fileList).forEach((file) => {
-      if (!file.name.endsWith(".csv")) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        const result = parseCSV(text);
-        setFiles((prev) => [...prev, { name: file.name, result }]);
+    Array.from(fileList).forEach(async (file) => {
+      const isPDF = file.name.toLowerCase().endsWith(".pdf");
+      const isCSV = file.name.toLowerCase().endsWith(".csv");
+      if (!isPDF && !isCSV) return;
 
-        // Auto-detect month/year from transactions
-        if (result.transactions.length > 0) {
-          const monthCounts: Record<string, number> = {};
-          result.transactions.forEach((t) => {
-            const d = new Date(t.date);
-            const key = `${d.getMonth() + 1}-${d.getFullYear()}`;
-            monthCounts[key] = (monthCounts[key] || 0) + 1;
-          });
-          const best = Object.entries(monthCounts).sort(
-            (a, b) => b[1] - a[1]
-          )[0];
-          if (best) {
-            const [m, y] = best[0].split("-").map(Number);
-            setSelectedMonth(m);
-            setSelectedYear(y);
+      if (isCSV) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          const result = parseCSV(text);
+          setFiles((prev) => [...prev, { name: file.name, result }]);
+          autoDetectMonth(result);
+        };
+        reader.readAsText(file);
+      } else {
+        // PDF parsing
+        setLoading(true);
+        try {
+          const result = await parsePDF(file);
+
+          // If client-side parsing failed or got no transactions, try AI fallback
+          if (result.transactions.length === 0 && (result as any)._rawText) {
+            const rawText = (result as any)._rawText;
+            try {
+              const aiRes = await fetch("/api/checkin/parse-pdf", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: rawText, bankHint: result.formatLabel }),
+              });
+              const aiData = await aiRes.json();
+              if (aiData.transactions && aiData.transactions.length > 0) {
+                const aiTransactions = aiData.transactions.map((t: any) => ({
+                  id: "tx_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7),
+                  date: t.date,
+                  description: t.description,
+                  amount: Math.abs(t.amount),
+                  isIncome: t.isIncome,
+                  category: autoCategory(t.description),
+                  source: result.format || "unknown",
+                  excluded: false,
+                }));
+                const aiResult: ParseResult = {
+                  format: result.format,
+                  formatLabel: result.formatLabel.replace(" (needs AI parsing)", "") + " (AI parsed)",
+                  transactions: aiTransactions,
+                  errors: [],
+                  dateRange: aiTransactions.length > 0
+                    ? { from: aiTransactions[0].date, to: aiTransactions[aiTransactions.length - 1].date }
+                    : null,
+                };
+                setFiles((prev) => [...prev, { name: file.name, result: aiResult }]);
+                autoDetectMonth(aiResult);
+                setLoading(false);
+                return;
+              }
+            } catch {}
           }
+
+          setFiles((prev) => [...prev, { name: file.name, result }]);
+          autoDetectMonth(result);
+        } catch (err) {
+          setFiles((prev) => [...prev, {
+            name: file.name,
+            result: {
+              format: "unknown",
+              formatLabel: "PDF Error",
+              transactions: [],
+              errors: [`Failed to parse PDF: ${err instanceof Error ? err.message : "Unknown error"}`],
+              dateRange: null,
+            },
+          }]);
         }
-      };
-      reader.readAsText(file);
+        setLoading(false);
+      }
     });
   }
 
@@ -431,14 +499,14 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".csv"
+            accept=".csv,.pdf"
             multiple
             className="hidden"
             onChange={(e) => handleFiles(e.target.files)}
           />
           <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
           <p className="text-sm font-medium">
-            Drop CSV files here or click to browse
+            Drop CSV or PDF statements here or click to browse
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Upload one file per account (bank, credit card, etc.)
