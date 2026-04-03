@@ -233,7 +233,7 @@ export function GoalsClient({ items, projections, cashFlow, debtPayoffs, debts }
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item, idx) => {
             const proj = projections[idx];
-            const pct = Math.min(100, (item.currentAmount / item.targetAmount) * 100);
+            const pct = item.targetAmount > 0 ? Math.min(100, (item.currentAmount / item.targetAmount) * 100) : 0;
             const remaining = item.targetAmount - item.currentAmount;
             const daysLeft = Math.max(0, Math.ceil((new Date(item.targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
             const Icon = typeIcon(item.type);

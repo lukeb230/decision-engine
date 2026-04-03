@@ -520,17 +520,18 @@ export function DashboardClient({
           <CardContent className="p-4">
             <p className="text-sm font-medium mb-3">Dashboard Sections</p>
             <div className="space-y-1.5">
-              {allSections.map((section, idx) => {
+              {allSections.map((section) => {
                 const isHidden = config.hidden.includes(section);
+                const configIdx = config.sections.indexOf(section);
                 return (
                   <div key={section} className={`flex items-center gap-2 px-3 py-2 rounded-lg ${isHidden ? "opacity-50 bg-muted/30" : "bg-muted/50"}`}>
                     <GripVertical className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="text-sm flex-1">{sectionLabels[section]}</span>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSection(section, -1)} disabled={idx === 0}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSection(section, -1)} disabled={configIdx <= 0}>
                         <span className="text-xs">&#9650;</span>
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSection(section, 1)} disabled={idx === config.sections.length - 1}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => moveSection(section, 1)} disabled={configIdx >= config.sections.length - 1}>
                         <span className="text-xs">&#9660;</span>
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => toggleSection(section)}>

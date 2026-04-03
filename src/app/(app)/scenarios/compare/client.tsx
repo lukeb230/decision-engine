@@ -68,19 +68,19 @@ interface CompareClientProps {
 
 const SCENARIO_COLORS = ["#6b7280", "#3b82f6", "#22c55e", "#f59e0b"];
 
-function DiffBadge({ value }: { value: number }) {
+function DiffBadge({ value, invert = false }: { value: number; invert?: boolean }) {
   if (value === 0) return null;
-  const positive = value > 0;
+  const isGood = invert ? value < 0 : value > 0;
   return (
     <Badge
       variant="outline"
       className={`ml-2 text-xs ${
-        positive
+        isGood
           ? "border-green-300 bg-green-50 text-green-700"
           : "border-red-300 bg-red-50 text-red-700"
       }`}
     >
-      {positive ? "+" : ""}
+      {value > 0 ? "+" : ""}
       {formatCurrency(value)}
     </Badge>
   );
@@ -124,6 +124,7 @@ function PercentDiffBadge({ value }: { value: number }) {
 
 interface ScenarioMetrics {
   monthlyCashFlow: number;
+  freeCashFlow: number;
   monthlyExpenses: number;
   monthlyDebtPayments: number;
   netWorthNow: number;
@@ -138,6 +139,8 @@ interface ScenarioMetrics {
 
 function computeMetrics(state: FinancialState): ScenarioMetrics {
   const monthlyCashFlow = calculateMonthlyCashFlow(state.incomes, state.expenses, state.debts);
+  const totalContributions = state.assets.reduce((s, a) => s + (a.monthlyContribution || 0), 0);
+  const freeCashFlow = monthlyCashFlow - totalContributions;
   const monthlyExpenses = calculateMonthlyExpenses(state.expenses);
   const monthlyDebtPayments = calculateMonthlyDebtPayments(state.debts);
   const netWorthNow = calculateNetWorth(state.assets, state.debts);
@@ -158,7 +161,7 @@ function computeMetrics(state: FinancialState): ScenarioMetrics {
 
   // Investable surplus = cash flow minus minimum debt payments already accounted for
   const netIncome = calculateMonthlyNetIncome(state.incomes);
-  const investableSurplus = Math.max(0, netIncome - monthlyExpenses - monthlyDebtPayments);
+  const investableSurplus = Math.max(0, netIncome - monthlyExpenses - monthlyDebtPayments - totalContributions);
 
   const chartData = projections
     .filter((_, i) => i % 3 === 0 || i === projections.length - 1)
@@ -166,6 +169,7 @@ function computeMetrics(state: FinancialState): ScenarioMetrics {
 
   return {
     monthlyCashFlow,
+    freeCashFlow,
     monthlyExpenses,
     monthlyDebtPayments,
     netWorthNow,
@@ -235,10 +239,11 @@ export function CompareClient({ scenarios, financialState }: CompareClientProps)
     label: string;
     type: "currency" | "months" | "percent";
     key: keyof ScenarioMetrics;
+    invert?: boolean;
   }[] = [
-    { label: "Monthly Cash Flow", type: "currency", key: "monthlyCashFlow" },
-    { label: "Monthly Expenses", type: "currency", key: "monthlyExpenses" },
-    { label: "Monthly Debt Payments", type: "currency", key: "monthlyDebtPayments" },
+    { label: "Free Cash Flow", type: "currency", key: "freeCashFlow" },
+    { label: "Monthly Expenses", type: "currency", key: "monthlyExpenses", invert: true },
+    { label: "Monthly Debt Payments", type: "currency", key: "monthlyDebtPayments", invert: true },
     { label: "Net Worth (Now)", type: "currency", key: "netWorthNow" },
     { label: "Net Worth (1 Year)", type: "currency", key: "netWorth1yr" },
     { label: "Net Worth (3 Years)", type: "currency", key: "netWorth3yr" },
@@ -350,7 +355,7 @@ export function CompareClient({ scenarios, financialState }: CompareClientProps)
                         return (
                           <TableCell key={s.id}>
                             {formatValue(val, row.type)}
-                            {row.type === "currency" && <DiffBadge value={diff} />}
+                            {row.type === "currency" && <DiffBadge value={diff} invert={row.invert} />}
                             {row.type === "months" && <MonthsDiffBadge value={diff} />}
                             {row.type === "percent" && <PercentDiffBadge value={diff} />}
                           </TableCell>

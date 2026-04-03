@@ -88,13 +88,13 @@ const STEPS = [
 ];
 
 const EXPENSE_SUGGESTIONS = [
-  { name: "Rent/Mortgage", category: "housing", amount: 1500 },
-  { name: "Utilities", category: "utilities", amount: 200 },
-  { name: "Groceries", category: "food", amount: 400 },
-  { name: "Insurance", category: "insurance", amount: 300 },
-  { name: "Subscriptions", category: "subscriptions", amount: 50 },
-  { name: "Dining Out", category: "food", amount: 150 },
-  { name: "Gas/Transport", category: "transport", amount: 200 },
+  { name: "Rent/Mortgage", category: "housing", amount: 1500, isFixed: true },
+  { name: "Utilities", category: "utilities", amount: 200, isFixed: true },
+  { name: "Groceries", category: "food", amount: 400, isFixed: false },
+  { name: "Insurance", category: "insurance", amount: 300, isFixed: true },
+  { name: "Subscriptions", category: "subscriptions", amount: 50, isFixed: true },
+  { name: "Dining Out", category: "food", amount: 150, isFixed: false },
+  { name: "Gas/Transport", category: "transport", amount: 200, isFixed: false },
 ];
 
 const DEBT_TYPES = ["mortgage", "student", "credit", "auto", "personal"];
@@ -135,6 +135,7 @@ export default function OnboardingPage() {
     name: "",
     amount: "",
     category: "other",
+    isFixed: true,
   });
   const [debtForm, setDebtForm] = useState({
     name: "",
@@ -206,7 +207,7 @@ export default function OnboardingPage() {
           amount: suggestion.amount,
           category: suggestion.category,
           frequency: "monthly",
-          isFixed: true,
+          isFixed: suggestion.isFixed,
         },
       ]);
       return;
@@ -219,10 +220,10 @@ export default function OnboardingPage() {
         amount: parseFloat(expenseForm.amount),
         category: expenseForm.category,
         frequency: "monthly",
-        isFixed: true,
+        isFixed: expenseForm.isFixed,
       },
     ]);
-    setExpenseForm({ name: "", amount: "", category: "other" });
+    setExpenseForm({ name: "", amount: "", category: "other", isFixed: true });
   }
 
   function addDebt() {
@@ -578,6 +579,31 @@ export default function OnboardingPage() {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={expenseForm.isFixed ? "default" : "outline"}
+                  onClick={() =>
+                    setExpenseForm((f) => ({ ...f, isFixed: true }))
+                  }
+                >
+                  Fixed
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={!expenseForm.isFixed ? "default" : "outline"}
+                  onClick={() =>
+                    setExpenseForm((f) => ({ ...f, isFixed: false }))
+                  }
+                >
+                  Variable
+                </Button>
               </div>
             </div>
             <Button onClick={() => addExpense()} size="sm" className="gap-1">
@@ -1077,7 +1103,8 @@ export default function OnboardingPage() {
 
   function renderComplete() {
     const totalMonthlyIncome = incomes.reduce(
-      (s, i) => s + toMonthly(i.amount, i.frequency),
+      (s, i) =>
+        s + toMonthly(i.amount, i.frequency) * (1 - i.taxRate / 100),
       0
     );
     const totalMonthlyExpenses = expenses.reduce((s, e) => s + e.amount, 0);
