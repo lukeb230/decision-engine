@@ -226,15 +226,25 @@ export function DebtsClient({ items }: { items: Debt[] }) {
                       <TableCell><Badge variant="secondary" className="capitalize">{item.type}</Badge></TableCell>
                       <TableCell>
                         {item.originalLoan || item.loanTermMonths ? (
-                          <div className="space-y-0.5">
-                            {item.originalLoan && (
-                              <p className="text-xs">{formatCurrency(item.originalLoan)} loan</p>
-                            )}
-                            {item.loanTermMonths && (
-                              <p className="text-xs text-muted-foreground">{formatTerm(item.loanTermMonths)} term</p>
-                            )}
-                            {paidPercent !== null && (
-                              <p className="text-[10px] text-muted-foreground">{paidPercent}% paid off</p>
+                          <div className="space-y-1 min-w-[120px]">
+                            <div className="flex items-center justify-between text-xs">
+                              {item.originalLoan ? (
+                                <span>{formatCurrency(item.originalLoan)}</span>
+                              ) : <span />}
+                              {item.loanTermMonths ? (
+                                <span className="text-muted-foreground">{formatTerm(item.loanTermMonths)}</span>
+                              ) : null}
+                            </div>
+                            {item.originalLoan && item.originalLoan > 0 && (
+                              <>
+                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                                    style={{ width: `${Math.min(100, Math.max(0, paidPercent ?? 0))}%` }}
+                                  />
+                                </div>
+                                <p className="text-[10px] text-muted-foreground">{paidPercent}% paid off</p>
+                              </>
                             )}
                           </div>
                         ) : (

@@ -310,7 +310,7 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
     }));
   }
 
-  function updateDebt(id: string, field: string, value: string | number) {
+  function updateDebt(id: string, field: string, value: string | number | null) {
     setSaved(false);
     setSandboxState((prev) => ({
       ...prev,
@@ -371,7 +371,7 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
       ...prev,
       debts: [
         ...prev.debts,
-        { id, name: "New Debt", balance: 0, interestRate: 0, minimumPayment: 0, type: "personal" },
+        { id, name: "New Debt", balance: 0, interestRate: 0, minimumPayment: 0, type: "personal", originalLoan: null, loanTermMonths: null },
       ],
     }));
     setExpandedItems((prev) => new Set(prev).add(id));
@@ -752,6 +752,21 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </button>
                     </div>
                   </div>
+                  {/* Loan progress bar (shown when collapsed and has original loan) */}
+                  {!expandedItems.has(dbt.id) && dbt.originalLoan && dbt.originalLoan > 0 && (
+                    <div className="mt-2">
+                      <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.min(100, Math.max(0, ((dbt.originalLoan - dbt.balance) / dbt.originalLoan) * 100))}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {Math.round(((dbt.originalLoan - dbt.balance) / dbt.originalLoan) * 100)}% paid off
+                        {dbt.loanTermMonths ? ` \u00b7 ${dbt.loanTermMonths}mo term` : ""}
+                      </p>
+                    </div>
+                  )}
                   {expandedItems.has(dbt.id) && (
                     <div className="mt-3 grid grid-cols-2 gap-3">
                       <div>
@@ -781,7 +796,7 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Min. Payment</Label>
+                        <Label className="text-xs">Monthly Payment</Label>
                         <Input
                           type="number"
                           value={dbt.minimumPayment}
@@ -809,6 +824,41 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                           </SelectContent>
                         </Select>
                       </div>
+                      {/* Optional loan details */}
+                      <div>
+                        <Label className="text-xs">Original Loan ($)</Label>
+                        <Input
+                          type="number"
+                          value={dbt.originalLoan ?? ""}
+                          onChange={(e) => updateDebt(dbt.id, "originalLoan", e.target.value ? Number(e.target.value) : null)}
+                          placeholder="Optional"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Loan Term (months)</Label>
+                        <Input
+                          type="number"
+                          value={dbt.loanTermMonths ?? ""}
+                          onChange={(e) => updateDebt(dbt.id, "loanTermMonths", e.target.value ? Number(e.target.value) : null)}
+                          placeholder="Optional"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      {/* Loan progress bar in expanded view */}
+                      {dbt.originalLoan && dbt.originalLoan > 0 && (
+                        <div className="col-span-2">
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                              style={{ width: `${Math.min(100, Math.max(0, ((dbt.originalLoan - dbt.balance) / dbt.originalLoan) * 100))}%` }}
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-1">
+                            {formatCurrency(dbt.originalLoan - dbt.balance)} of {formatCurrency(dbt.originalLoan)} paid ({Math.round(((dbt.originalLoan - dbt.balance) / dbt.originalLoan) * 100)}%)
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
