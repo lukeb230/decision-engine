@@ -71,6 +71,18 @@ export function calculateDebtPayoff(
   debt: DebtInput,
   extraPayment: number = 0
 ): DebtPayoffResult {
+  // Already paid off
+  if (debt.balance <= 0) {
+    return {
+      debtId: debt.id,
+      debtName: debt.name,
+      monthsToPayoff: 0,
+      totalInterestPaid: 0,
+      totalPaid: 0,
+      payoffDate: new Date().toISOString().split("T")[0],
+    };
+  }
+
   const monthlyRate = debt.interestRate / 100 / 12;
   const payment = debt.minimumPayment + extraPayment;
   let balance = debt.balance;
@@ -78,7 +90,7 @@ export function calculateDebtPayoff(
   let totalInterest = 0;
   const maxMonths = 600; // 50 year cap
 
-  if (payment <= balance * monthlyRate) {
+  if (payment <= 0 || payment <= balance * monthlyRate) {
     return {
       debtId: debt.id,
       debtName: debt.name,
@@ -174,9 +186,17 @@ export function projectSavings(
     .filter((a) => a.type === "investment")
     .reduce((sum, a) => sum + a.value, 0);
 
-  // Assume 4.5% APY on savings, 8% on investments
-  const savingsMonthlyRate = 0.045 / 12;
-  const investmentMonthlyRate = 0.08 / 12;
+  // Use weighted average growth rates from actual assets (fall back to defaults)
+  const savingsAssets = assets.filter((a) => a.type === "savings");
+  const investmentAssets = assets.filter((a) => a.type === "investment");
+  const weightedSavingsRate = savings > 0
+    ? savingsAssets.reduce((sum, a) => sum + a.growthRate * a.value, 0) / savings
+    : 4.5;
+  const weightedInvestmentRate = investments > 0
+    ? investmentAssets.reduce((sum, a) => sum + a.growthRate * a.value, 0) / investments
+    : 8;
+  const savingsMonthlyRate = weightedSavingsRate / 100 / 12;
+  const investmentMonthlyRate = weightedInvestmentRate / 100 / 12;
 
   for (let m = 0; m <= months; m++) {
     const date = new Date(now.getFullYear(), now.getMonth() + m, 1);

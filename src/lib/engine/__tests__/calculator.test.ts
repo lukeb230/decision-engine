@@ -135,10 +135,64 @@ describe("calculateDebtPayoff", () => {
       name: "Underwater",
       balance: 50000,
       interestRate: 25,
-      minimumPayment: 50, // less than monthly interest of ~1042
+      minimumPayment: 50,
       type: "personal",
     };
     const result = calculateDebtPayoff(badDebt);
+    expect(result.monthsToPayoff).toBe(Infinity);
+  });
+
+  it("returns 0 months for $0 balance debt (Bug 1)", () => {
+    const paidOff: DebtInput = {
+      id: "x",
+      name: "Done",
+      balance: 0,
+      interestRate: 5,
+      minimumPayment: 0,
+      type: "personal",
+    };
+    const result = calculateDebtPayoff(paidOff);
+    expect(result.monthsToPayoff).toBe(0);
+    expect(result.totalInterestPaid).toBe(0);
+  });
+
+  it("returns 0 months for negative balance debt", () => {
+    const overpaid: DebtInput = {
+      id: "x",
+      name: "Overpaid",
+      balance: -100,
+      interestRate: 5,
+      minimumPayment: 50,
+      type: "personal",
+    };
+    const result = calculateDebtPayoff(overpaid);
+    expect(result.monthsToPayoff).toBe(0);
+  });
+
+  it("handles zero interest rate correctly", () => {
+    const noInterest: DebtInput = {
+      id: "x",
+      name: "NoInterest",
+      balance: 1000,
+      interestRate: 0,
+      minimumPayment: 100,
+      type: "personal",
+    };
+    const result = calculateDebtPayoff(noInterest);
+    expect(result.monthsToPayoff).toBe(10);
+    expect(result.totalInterestPaid).toBe(0);
+  });
+
+  it("returns Infinity when payment is 0 and balance > 0", () => {
+    const noPayment: DebtInput = {
+      id: "x",
+      name: "NoPayment",
+      balance: 1000,
+      interestRate: 5,
+      minimumPayment: 0,
+      type: "personal",
+    };
+    const result = calculateDebtPayoff(noPayment);
     expect(result.monthsToPayoff).toBe(Infinity);
   });
 });
@@ -210,5 +264,83 @@ describe("estimateMilestones", () => {
     const emergency = milestones.find((m) => m.name === "6-Month Emergency Fund");
     expect(emergency).toBeDefined();
     expect(emergency!.achievable).toBe(true);
+  });
+
+  it("handles no debts gracefully", () => {
+    const state = { incomes, expenses, debts: [], assets, goals: [] };
+    const milestones = estimateMilestones(state);
+    expect(milestones.find((m) => m.name === "Debt Free")).toBeUndefined();
+  });
+
+  it("handles no assets gracefully", () => {
+    const state = { incomes, expenses, debts, assets: [], goals: [] };
+    const milestones = estimateMilestones(state);
+    expect(milestones.length).toBeGreaterThan(0);
+  });
+
+  it("handles zero income gracefully", () => {
+    const state = { incomes: [], expenses, debts, assets, goals: [] };
+    const milestones = estimateMilestones(state);
+    // Should still produce milestones but mark them as not achievable
+    const nw100k = milestones.find((m) => m.name === "$100K Net Worth");
+    if (nw100k) expect(nw100k.achievable).toBe(false);
+  });
+});
+
+// --- projectToGoal edge case tests ---
+
+import { projectToGoal } from "../projections";
+
+describe("projectToGoal edge cases", () => {
+  const baseState = { incomes, expenses, debts, assets, goals: [] };
+
+  it("returns 0 months for already-met goal (Bug 6 edge case)", () => {
+    const goal = { targetAmount: 5000, currentAmount: 10000, targetDate: "2030-01-01" };
+    const result = projectToGoal(baseState, goal);
+    expect(result.estimatedMonths).toBe(0);
+    expect(result.onTrack).toBe(true);
+    expect(result.monthlySavingsNeeded).toBe(0);
+  });
+
+  it("returns Infinity for unreachable goal with no surplus", () => {
+    const brokeState = { ...baseState, incomes: [] };
+    const goal = { targetAmount: 100000, currentAmount: 0, targetDate: "2030-01-01" };
+    const result = projectToGoal(brokeState, goal);
+    expect(result.estimatedMonths).toBe(Infinity);
+    expect(result.estimatedDate).toBe("Never");
+  });
+});
+
+// --- applyScenarioChanges tests ---
+
+import { applyScenarioChanges } from "../projections";
+
+describe("applyScenarioChanges (Bug 7)", () => {
+  const baseState = { incomes, expenses, debts, assets, goals: [] };
+
+  it("converts 'true'/'false' strings to booleans", () => {
+    const changes = [{ entityType: "expense", entityId: "1", field: "isFixed", oldValue: "true", newValue: "false" }];
+    const result = applyScenarioChanges(baseState, changes);
+    expect(result.expenses[0].isFixed).toBe(false);
+  });
+
+  it("converts numeric strings to numbers", () => {
+    const changes = [{ entityType: "income", entityId: "1", field: "amount", oldValue: "3269.23", newValue: "5000" }];
+    const result = applyScenarioChanges(baseState, changes);
+    expect(result.incomes[0].amount).toBe(5000);
+    expect(typeof result.incomes[0].amount).toBe("number");
+  });
+
+  it("leaves non-numeric strings as strings", () => {
+    const changes = [{ entityType: "income", entityId: "1", field: "frequency", oldValue: "biweekly", newValue: "monthly" }];
+    const result = applyScenarioChanges(baseState, changes);
+    expect(result.incomes[0].frequency).toBe("monthly");
+  });
+
+  it("silently ignores non-matching entityId", () => {
+    const changes = [{ entityType: "income", entityId: "nonexistent", field: "amount", oldValue: "0", newValue: "1000" }];
+    const result = applyScenarioChanges(baseState, changes);
+    // Should not crash, original state unchanged
+    expect(result.incomes[0].amount).toBe(incomes[0].amount);
   });
 });

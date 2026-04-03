@@ -77,32 +77,41 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
       // Calculate remaining surplus AFTER contributions and debt payments
       const surplus = monthlyIncome - monthlyExpenses - actualDebtPayments - totalContributions;
 
-      // Only add positive surplus to savings
+      // Only add positive surplus to savings (or first available asset)
       if (surplus > 0) {
         const savingsAsset = state.assets.find((a) => a.type === "savings");
         if (savingsAsset) {
           assetValues[savingsAsset.id] += surplus;
+        } else if (state.assets.length > 0) {
+          // No savings account — deposit to first available asset
+          assetValues[state.assets[0].id] += surplus;
         }
+        // If no assets at all, surplus is tracked via unallocatedSurplus below
       }
     }
 
     const totalDebtBalance = Object.values(debtBalances).reduce((s, v) => s + v, 0);
     const totalAssetValue = Object.values(assetValues).reduce((s, v) => s + v, 0);
 
-    // Recalculate actual debt payments for the snapshot
-    const currentDebtPayments = state.debts.reduce(
-      (sum, d) => sum + (debtBalances[d.id] > 0.01 ? d.minimumPayment : 0),
-      0
-    );
+    // Use actual debt payments from this month's simulation (not recalculated from state)
+    const monthDebtPayments = m > 0
+      ? state.debts.reduce((sum, d) => {
+          // Check what was actually paid: if debt was active at start of this month
+          const balanceBefore = snapshots.length > 0
+            ? snapshots[snapshots.length - 1].debtBalances[d.id] ?? 0
+            : d.balance;
+          return sum + (balanceBefore > 0.01 ? Math.min(d.minimumPayment, balanceBefore + balanceBefore * (d.interestRate / 100 / 12)) : 0);
+        }, 0)
+      : state.debts.reduce((sum, d) => sum + (d.balance > 0 ? d.minimumPayment : 0), 0);
 
     snapshots.push({
       month: m,
       label,
       totalIncome: Math.round(monthlyIncome * 100) / 100,
       totalExpenses: Math.round(monthlyExpenses * 100) / 100,
-      totalDebtPayments: Math.round(currentDebtPayments * 100) / 100,
+      totalDebtPayments: Math.round(monthDebtPayments * 100) / 100,
       netCashFlow: Math.round(
-        (monthlyIncome - monthlyExpenses - currentDebtPayments - totalContributions) * 100
+        (monthlyIncome - monthlyExpenses - monthDebtPayments - totalContributions) * 100
       ) / 100,
       totalDebtBalance: Math.round(totalDebtBalance * 100) / 100,
       totalAssetValue: Math.round(totalAssetValue * 100) / 100,
@@ -122,7 +131,17 @@ export function projectMonthly(state: FinancialState, months: number): MonthlySn
 export function projectToGoal(
   state: FinancialState,
   goal: { targetAmount: number; currentAmount: number; targetDate: string }
-): GoalProjection & { goalId: string; goalName: string } {
+): Omit<GoalProjection, "goalId" | "goalName"> {
+  // Goal already met
+  if (goal.currentAmount >= goal.targetAmount) {
+    return {
+      estimatedMonths: 0,
+      estimatedDate: new Date().toISOString().split("T")[0],
+      monthlySavingsNeeded: 0,
+      onTrack: true,
+    };
+  }
+
   const monthlyIncome = calculateMonthlyNetIncome(state.incomes);
   const monthlyExpenses = calculateMonthlyExpenses(state.expenses);
   const monthlyDebtPayments = state.debts.reduce((s, d) => s + d.minimumPayment, 0);
@@ -138,7 +157,9 @@ export function projectToGoal(
   const estimatedMonths = surplus > 0 ? Math.ceil(remaining / surplus) : Infinity;
 
   const estimatedDate = new Date();
-  estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);
+  if (estimatedMonths !== Infinity) {
+    estimatedDate.setMonth(estimatedDate.getMonth() + estimatedMonths);
+  }
 
   const targetDate = new Date(goal.targetDate);
   const monthsUntilTarget = Math.max(
@@ -151,8 +172,6 @@ export function projectToGoal(
     monthsUntilTarget > 0 ? remaining / monthsUntilTarget : remaining;
 
   return {
-    goalId: "",
-    goalName: "",
     estimatedMonths,
     estimatedDate:
       estimatedMonths === Infinity
@@ -181,8 +200,16 @@ export function applyScenarioChanges(
     ] as unknown as Array<Record<string, unknown>>;
     const entity = collection?.find((e) => e.id === change.entityId);
     if (entity) {
-      const numVal = parseFloat(change.newValue);
-      entity[change.field] = isNaN(numVal) ? change.newValue : numVal;
+      // Handle type coercion: booleans, numbers, strings
+      const val = change.newValue;
+      if (val === "true") {
+        entity[change.field] = true;
+      } else if (val === "false") {
+        entity[change.field] = false;
+      } else {
+        const numVal = parseFloat(val);
+        entity[change.field] = !isNaN(numVal) && val.trim() !== "" ? numVal : val;
+      }
     }
   }
 

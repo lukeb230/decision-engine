@@ -70,15 +70,24 @@ export function compareScenarios(
     const scenPayoff = scenarioDebt
       ? calculateDebtPayoff(scenarioDebt)
       : basePayoff;
+    // Guard against Infinity - Infinity = NaN
+    const monthsSaved = (basePayoff.monthsToPayoff === Infinity && scenPayoff.monthsToPayoff === Infinity)
+      ? 0
+      : (basePayoff.monthsToPayoff === Infinity ? Infinity : basePayoff.monthsToPayoff - scenPayoff.monthsToPayoff);
+    const interestSaved = (basePayoff.totalInterestPaid === Infinity && scenPayoff.totalInterestPaid === Infinity)
+      ? 0
+      : (basePayoff.totalInterestPaid === Infinity ? Infinity
+        : Math.round((basePayoff.totalInterestPaid - scenPayoff.totalInterestPaid) * 100) / 100);
+
     return {
       debtId: debt.id,
       debtName: debt.name,
       baselineMonths: basePayoff.monthsToPayoff,
       scenarioMonths: scenPayoff.monthsToPayoff,
-      monthsSaved: basePayoff.monthsToPayoff - scenPayoff.monthsToPayoff,
+      monthsSaved: isNaN(monthsSaved) ? 0 : monthsSaved,
       baselineInterest: basePayoff.totalInterestPaid,
       scenarioInterest: scenPayoff.totalInterestPaid,
-      interestSaved: Math.round((basePayoff.totalInterestPaid - scenPayoff.totalInterestPaid) * 100) / 100,
+      interestSaved: isNaN(interestSaved as number) ? 0 : interestSaved,
     };
   });
 
@@ -86,23 +95,20 @@ export function compareScenarios(
   const goalComparisons: GoalComparisonItem[] = baselineState.goals.map((goal) => {
     const baseProj = projectToGoal(baselineState, goal);
     const scenProj = projectToGoal(scenarioState, goal);
-    const monthsChanged = baseProj.estimatedMonths - scenProj.estimatedMonths;
+    const monthsChanged = (baseProj.estimatedMonths === Infinity && scenProj.estimatedMonths === Infinity)
+      ? 0
+      : baseProj.estimatedMonths - scenProj.estimatedMonths;
     return {
       goalId: goal.id,
       goalName: goal.name,
       baselineMonths: baseProj.estimatedMonths,
       scenarioMonths: scenProj.estimatedMonths,
-      monthsChanged,
+      monthsChanged: isNaN(monthsChanged) ? 0 : monthsChanged,
       accelerated: monthsChanged > 0,
     };
   });
 
-  // Investable surplus: cash flow minus minimum expenses/debts
-  // This represents what could go to investments after all obligations
-  const baselineMinExpenses = calculateMonthlyExpenses(baselineState.expenses)
-    + calculateMonthlyDebtPayments(baselineState.debts);
-  const scenarioMinExpenses = calculateMonthlyExpenses(scenarioState.expenses)
-    + calculateMonthlyDebtPayments(scenarioState.debts);
+  // Investable surplus: what's available to invest after all obligations
   const baselineInvestableSurplus = Math.max(0, baselineCashFlow);
   const scenarioInvestableSurplus = Math.max(0, scenarioCashFlow);
 
