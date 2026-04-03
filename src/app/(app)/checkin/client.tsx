@@ -782,9 +782,21 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
                           </Select>
                         )}
                         {t.isIncome && (
-                          <span className="text-xs text-muted-foreground">
-                            Income
-                          </span>
+                          <Select
+                            value={t.category || "income"}
+                            onValueChange={(v: string | null) => {
+                              if (v) updateTransaction(i, { category: v });
+                            }}
+                          >
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue>{capitalize(t.category === "other" ? "income" : t.category || "income")}</SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="income">Income</SelectItem>
+                              <SelectItem value="transfers">Transfer</SelectItem>
+                              <SelectItem value="refund">Refund</SelectItem>
+                            </SelectContent>
+                          </Select>
                         )}
                       </TableCell>
                       <TableCell>
