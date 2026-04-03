@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NumericInput } from "@/components/ui/numeric-input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -561,10 +562,9 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </div>
                       <div>
                         <Label className="text-xs">Amount</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={inc.amount}
-                          onChange={(e) => updateIncome(inc.id, "amount", Number(e.target.value))}
+                          onValueChange={(v) => updateIncome(inc.id, "amount", v)}
                           className="h-8 text-sm"
                         />
                       </div>
@@ -590,10 +590,9 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </div>
                       <div>
                         <Label className="text-xs">Tax Rate (%)</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={inc.taxRate}
-                          onChange={(e) => updateIncome(inc.id, "taxRate", Number(e.target.value))}
+                          onValueChange={(v) => updateIncome(inc.id, "taxRate", v)}
                           className="h-8 text-sm"
                         />
                       </div>
@@ -657,10 +656,9 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </div>
                       <div>
                         <Label className="text-xs">Amount</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={exp.amount}
-                          onChange={(e) => updateExpense(exp.id, "amount", Number(e.target.value))}
+                          onValueChange={(v) => updateExpense(exp.id, "amount", v)}
                           className="h-8 text-sm"
                         />
                       </div>
@@ -779,28 +777,25 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </div>
                       <div>
                         <Label className="text-xs">Balance</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={dbt.balance}
-                          onChange={(e) => updateDebt(dbt.id, "balance", Number(e.target.value))}
+                          onValueChange={(v) => updateDebt(dbt.id, "balance", v)}
                           className="h-8 text-sm"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Interest Rate (%)</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={dbt.interestRate}
-                          onChange={(e) => updateDebt(dbt.id, "interestRate", Number(e.target.value))}
+                          onValueChange={(v) => updateDebt(dbt.id, "interestRate", v)}
                           className="h-8 text-sm"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Monthly Payment</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={dbt.minimumPayment}
-                          onChange={(e) => updateDebt(dbt.id, "minimumPayment", Number(e.target.value))}
+                          onValueChange={(v) => updateDebt(dbt.id, "minimumPayment", v)}
                           className="h-8 text-sm"
                         />
                       </div>
@@ -919,30 +914,25 @@ export default function ScenarioSandboxClient({ scenario, financialState }: Prop
                       </div>
                       <div>
                         <Label className="text-xs">Value</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={ast.value}
-                          onChange={(e) => updateAsset(ast.id, "value", Number(e.target.value))}
+                          onValueChange={(v) => updateAsset(ast.id, "value", v)}
                           className="h-8 text-sm"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Growth Rate (%)</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={ast.growthRate}
-                          onChange={(e) => updateAsset(ast.id, "growthRate", Number(e.target.value))}
+                          onValueChange={(v) => updateAsset(ast.id, "growthRate", v)}
                           className="h-8 text-sm"
                         />
                       </div>
                       <div>
                         <Label className="text-xs">Monthly Contribution</Label>
-                        <Input
-                          type="number"
+                        <NumericInput
                           value={ast.monthlyContribution}
-                          onChange={(e) =>
-                            updateAsset(ast.id, "monthlyContribution", Number(e.target.value))
-                          }
+                          onValueChange={(v) => updateAsset(ast.id, "monthlyContribution", v)}
                           className="h-8 text-sm"
                         />
                       </div>
