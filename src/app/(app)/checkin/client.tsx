@@ -392,6 +392,22 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
   }
 
   // ---------------------------------------------------------------------------
+  // Convert grades to flat map for storage and API consumption
+  // ---------------------------------------------------------------------------
+
+  const gradeDetailsMap: Record<string, { budgeted: number; actual: number; grade: string; diff: number }> = {};
+  if (grades) {
+    for (const cat of grades.categories) {
+      gradeDetailsMap[cat.category] = {
+        budgeted: cat.budgeted,
+        actual: cat.actual,
+        grade: cat.grade,
+        diff: cat.diff,
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Suggestions step
   // ---------------------------------------------------------------------------
 
@@ -405,7 +421,7 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
         body: JSON.stringify({
           month: selectedMonth,
           year: selectedYear,
-          gradeDetails: grades,
+          gradeDetails: gradeDetailsMap,
           expensesByCategory,
           totalIncome,
           totalExpenses,
@@ -437,7 +453,8 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
           totalExpenses,
           overallGrade: grades?.overallGrade ?? "",
           expensesByCategory,
-          gradeDetails: grades,
+          gradeDetails: gradeDetailsMap,
+          transactions: activeTransactions,
         }),
       });
       setSaved(true);

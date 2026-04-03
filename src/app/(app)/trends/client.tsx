@@ -110,6 +110,10 @@ export function TrendsClient({ checkins, budget }: Props & { budget: Record<stri
     (a, b) => a.year * 12 + a.month - (b.year * 12 + b.month)
   );
 
+  // Hooks must be called before any conditional returns
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState(Math.max(0, sorted.length - 1));
+  const selectedCheckin = sorted[selectedMonthIdx] ?? null;
+
   if (sorted.length === 0) {
     return (
       <div className="space-y-4">
@@ -137,9 +141,6 @@ export function TrendsClient({ checkins, budget }: Props & { budget: Record<stri
       </div>
     );
   }
-
-  const [selectedMonthIdx, setSelectedMonthIdx] = useState(sorted.length - 1);
-  const selectedCheckin = sorted[selectedMonthIdx];
 
   // Summary calculations
   const totalMonths = sorted.length;
