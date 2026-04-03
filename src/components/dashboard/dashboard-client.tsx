@@ -58,6 +58,7 @@ interface Props {
   dtiRatio: number;
   projections1yr: MonthlySnapshot[];
   projections5yr: MonthlySnapshot[];
+  debts: { id: string; balance: number; originalLoan?: number | null }[];
   debtPayoffs: DebtPayoffResult[];
   goalProjections: GoalProjection[];
   goals: GoalInput[];
@@ -114,7 +115,7 @@ function saveDashboardConfig(config: { sections: DashboardSection[]; hidden: Das
 
 export function DashboardClient({
   monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts,
-  emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debtPayoffs,
+  emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debts, debtPayoffs,
   goalProjections, goals, milestones, savingsProjection, spendingCategories,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
@@ -222,18 +223,32 @@ export function DashboardClient({
             <CardContent>
               {debtPayoffs.length > 0 ? (
                 <div className="space-y-3">
-                  {debtPayoffs.map((dp) => (
-                    <div key={dp.debtId} className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{dp.debtName}</p>
-                        <Badge variant={dp.monthsToPayoff <= 24 ? "default" : "secondary"} className="text-xs">{formatMonths(dp.monthsToPayoff)}</Badge>
+                  {debtPayoffs.map((dp) => {
+                    const debt = debts.find((d) => d.id === dp.debtId);
+                    const paidPct = debt?.originalLoan && debt.originalLoan > 0
+                      ? Math.min(100, Math.max(0, ((debt.originalLoan - debt.balance) / debt.originalLoan) * 100))
+                      : null;
+                    return (
+                      <div key={dp.debtId} className="space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">{dp.debtName}</p>
+                          <Badge variant={dp.monthsToPayoff <= 24 ? "default" : "secondary"} className="text-xs">{formatMonths(dp.monthsToPayoff)}</Badge>
+                        </div>
+                        {paidPct !== null && (
+                          <div className="space-y-0.5">
+                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${paidPct}%` }} />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">{Math.round(paidPct)}% paid off</p>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{formatCurrency(dp.totalInterestPaid)} interest</span>
+                          <span>{dp.payoffDate}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{formatCurrency(dp.totalInterestPaid)} interest</span>
-                        <span>{dp.payoffDate}</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : <p className="text-muted-foreground text-center py-6 text-sm">No debts tracked</p>}
             </CardContent>

@@ -103,6 +103,7 @@ export default async function DashboardPage() {
       dtiRatio={Math.round(dtiRatio * 10) / 10}
       projections1yr={projections1yr}
       projections5yr={projections5yr}
+      debts={debtInputs}
       debtPayoffs={debtPayoffs}
       goalProjections={goalProjections}
       goals={goalInputs}
