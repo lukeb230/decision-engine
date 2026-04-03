@@ -51,16 +51,18 @@ model Expense {
 }
 
 model Debt {
-  id             String   @id @default(cuid())
-  profileId      String
-  profile        Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  name           String
-  balance        Float
-  interestRate   Float
-  minimumPayment Float
-  type           String   @default("personal")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  profileId       String
+  profile         Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  name            String
+  balance         Float
+  interestRate    Float
+  minimumPayment  Float
+  type            String   @default("personal")
+  originalLoan    Float?   // Original loan amount (optional)
+  loanTermMonths  Int?     // Loan term in months (optional)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Asset {

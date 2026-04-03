@@ -22,6 +22,8 @@ export interface DebtInput {
   interestRate: number;
   minimumPayment: number;
   type: string;
+  originalLoan?: number | null;
+  loanTermMonths?: number | null;
 }
 
 export interface AssetInput {

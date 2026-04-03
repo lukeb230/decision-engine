@@ -21,9 +21,19 @@ interface Debt {
   interestRate: number;
   minimumPayment: number;
   type: string;
+  originalLoan: number | null;
+  loanTermMonths: number | null;
 }
 
 const debtTypes = ["mortgage", "student", "credit", "auto", "personal"];
+
+function formatTerm(months: number): string {
+  const years = Math.floor(months / 12);
+  const remaining = months % 12;
+  if (years === 0) return `${remaining} mo`;
+  if (remaining === 0) return `${years} yr`;
+  return `${years} yr ${remaining} mo`;
+}
 
 export function DebtsClient({ items }: { items: Debt[] }) {
   const router = useRouter();
@@ -31,6 +41,7 @@ export function DebtsClient({ items }: { items: Debt[] }) {
   const [editing, setEditing] = useState<Debt | null>(null);
   const [form, setForm] = useState({
     name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal",
+    originalLoan: "", loanTermMonths: "",
   });
 
   const totalBalance = items.reduce((sum, d) => sum + d.balance, 0);
@@ -38,7 +49,7 @@ export function DebtsClient({ items }: { items: Debt[] }) {
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal" });
+    setForm({ name: "", balance: "", interestRate: "", minimumPayment: "", type: "personal", originalLoan: "", loanTermMonths: "" });
     setOpen(true);
   }
 
@@ -50,17 +61,21 @@ export function DebtsClient({ items }: { items: Debt[] }) {
       interestRate: String(item.interestRate),
       minimumPayment: String(item.minimumPayment),
       type: item.type,
+      originalLoan: item.originalLoan ? String(item.originalLoan) : "",
+      loanTermMonths: item.loanTermMonths ? String(item.loanTermMonths) : "",
     });
     setOpen(true);
   }
 
   async function handleSave() {
-    const data = {
+    const data: Record<string, unknown> = {
       name: form.name,
       balance: parseFloat(form.balance),
       interestRate: parseFloat(form.interestRate),
       minimumPayment: parseFloat(form.minimumPayment),
       type: form.type,
+      originalLoan: form.originalLoan ? parseFloat(form.originalLoan) : null,
+      loanTermMonths: form.loanTermMonths ? parseInt(form.loanTermMonths) : null,
     };
     if (editing) {
       await fetch("/api/debts", {
@@ -84,6 +99,8 @@ export function DebtsClient({ items }: { items: Debt[] }) {
     router.refresh();
   }
 
+  const showLoanType = form.type === "mortgage" || form.type === "auto" || form.type === "student" || form.type === "personal";
+
   return (
     <div className="space-y-6 pt-2 md:pt-0">
       <div className="flex items-center justify-between">
@@ -104,19 +121,7 @@ export function DebtsClient({ items }: { items: Debt[] }) {
             <div className="space-y-4 pt-4">
               <div>
                 <Label>Name</Label>
-                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Student Loan" />
-              </div>
-              <div>
-                <Label>Balance ($)</Label>
-                <Input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} placeholder="22000" />
-              </div>
-              <div>
-                <Label>Interest Rate (%)</Label>
-                <Input type="number" step="0.1" value={form.interestRate} onChange={(e) => setForm({ ...form, interestRate: e.target.value })} placeholder="5.5" />
-              </div>
-              <div>
-                <Label>Minimum Payment ($/mo)</Label>
-                <Input type="number" value={form.minimumPayment} onChange={(e) => setForm({ ...form, minimumPayment: e.target.value })} placeholder="350" />
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Car Loan" />
               </div>
               <div>
                 <Label>Type</Label>
@@ -129,6 +134,53 @@ export function DebtsClient({ items }: { items: Debt[] }) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Current Balance ($)</Label>
+                  <Input type="number" value={form.balance} onChange={(e) => setForm({ ...form, balance: e.target.value })} placeholder="22000" />
+                </div>
+                <div>
+                  <Label>Interest Rate (% APR)</Label>
+                  <Input type="number" step="0.1" value={form.interestRate} onChange={(e) => setForm({ ...form, interestRate: e.target.value })} placeholder="5.5" />
+                </div>
+              </div>
+              <div>
+                <Label>Monthly Payment ($)</Label>
+                <Input type="number" value={form.minimumPayment} onChange={(e) => setForm({ ...form, minimumPayment: e.target.value })} placeholder="350" />
+              </div>
+
+              {/* Optional loan details */}
+              {showLoanType && (
+                <div className="border-t pt-4 space-y-3">
+                  <p className="text-xs text-muted-foreground">Loan Details (optional)</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Original Loan Amount ($)</Label>
+                      <Input
+                        type="number"
+                        value={form.originalLoan}
+                        onChange={(e) => setForm({ ...form, originalLoan: e.target.value })}
+                        placeholder="e.g. 30000"
+                      />
+                    </div>
+                    <div>
+                      <Label>Loan Term (months)</Label>
+                      <Input
+                        type="number"
+                        value={form.loanTermMonths}
+                        onChange={(e) => setForm({ ...form, loanTermMonths: e.target.value })}
+                        placeholder="e.g. 60"
+                      />
+                      {form.loanTermMonths && parseInt(form.loanTermMonths) > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">
+                          = {formatTerm(parseInt(form.loanTermMonths))}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <Button className="w-full" onClick={handleSave} disabled={!form.name || !form.balance || !form.interestRate || !form.minimumPayment}>
                 {editing ? "Update" : "Add"} Debt
               </Button>
@@ -145,8 +197,9 @@ export function DebtsClient({ items }: { items: Debt[] }) {
                 <TableHead>Name</TableHead>
                 <TableHead>Balance</TableHead>
                 <TableHead>Rate</TableHead>
-                <TableHead>Min Payment</TableHead>
+                <TableHead>Payment</TableHead>
                 <TableHead>Type</TableHead>
+                <TableHead>Loan Info</TableHead>
                 <TableHead>Payoff</TableHead>
                 <TableHead className="w-[100px]">Actions</TableHead>
               </TableRow>
@@ -154,13 +207,16 @@ export function DebtsClient({ items }: { items: Debt[] }) {
             <TableBody>
               {items.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                    No debts tracked. Click "Add Debt" to get started.
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    No debts tracked. Click &quot;Add Debt&quot; to get started.
                   </TableCell>
                 </TableRow>
               ) : (
                 items.map((item) => {
                   const payoff = calculateDebtPayoff(item);
+                  const paidPercent = item.originalLoan
+                    ? Math.round(((item.originalLoan - item.balance) / item.originalLoan) * 100)
+                    : null;
                   return (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
@@ -168,6 +224,23 @@ export function DebtsClient({ items }: { items: Debt[] }) {
                       <TableCell>{formatPercent(item.interestRate)}</TableCell>
                       <TableCell>{formatCurrency(item.minimumPayment)}</TableCell>
                       <TableCell><Badge variant="secondary" className="capitalize">{item.type}</Badge></TableCell>
+                      <TableCell>
+                        {item.originalLoan || item.loanTermMonths ? (
+                          <div className="space-y-0.5">
+                            {item.originalLoan && (
+                              <p className="text-xs">{formatCurrency(item.originalLoan)} loan</p>
+                            )}
+                            {item.loanTermMonths && (
+                              <p className="text-xs text-muted-foreground">{formatTerm(item.loanTermMonths)} term</p>
+                            )}
+                            {paidPercent !== null && (
+                              <p className="text-[10px] text-muted-foreground">{paidPercent}% paid off</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">--</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={payoff.monthsToPayoff <= 24 ? "default" : "secondary"}>
                           {formatMonths(payoff.monthsToPayoff)}
