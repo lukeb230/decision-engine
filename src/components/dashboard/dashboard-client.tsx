@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ProjectionChart } from "@/components/charts/projection-chart";
 import { MilestoneTimeline } from "@/components/charts/milestone-timeline";
-import { WaterfallChart } from "@/components/charts/waterfall-chart";
+import { SpendingBreakdown } from "@/components/charts/spending-breakdown";
 import { DTIGauge } from "@/components/charts/dti-gauge";
 import { formatCurrency, formatMonths } from "@/lib/utils";
 import {
@@ -37,10 +37,10 @@ import type {
   SavingsProjectionPoint,
 } from "@/lib/engine/types";
 
-interface WaterfallItem {
+interface SpendingCategory {
   name: string;
   amount: number;
-  type: "income" | "expense" | "debt" | "surplus";
+  color: string;
 }
 
 interface Props {
@@ -63,7 +63,7 @@ interface Props {
   goals: GoalInput[];
   milestones: MilestoneEstimate[];
   savingsProjection: SavingsProjectionPoint[];
-  waterfallItems: WaterfallItem[];
+  spendingCategories: SpendingCategory[];
 }
 
 function StatCard({
@@ -89,7 +89,7 @@ type DashboardSection = "projection" | "waterfall" | "dti" | "debtPayoff" | "goa
 
 const sectionLabels: Record<DashboardSection, string> = {
   projection: "Net Worth Projection",
-  waterfall: "Cash Flow Waterfall",
+  waterfall: "Spending Breakdown",
   dti: "Debt-to-Income Ratio",
   debtPayoff: "Debt Payoff",
   goals: "Goal Progress",
@@ -115,7 +115,7 @@ function saveDashboardConfig(config: { sections: DashboardSection[]; hidden: Das
 export function DashboardClient({
   monthlyIncome, monthlyExpenses, monthlyDebtPayments, cashFlow, freeSurplus, totalContributions, netWorth, totalAssets, totalDebts,
   emergencyMonths, savingsRate, dtiRatio, projections1yr, projections5yr, debtPayoffs,
-  goalProjections, goals, milestones, savingsProjection, waterfallItems,
+  goalProjections, goals, milestones, savingsProjection, spendingCategories,
 }: Props) {
   const [projectionRange, setProjectionRange] = useState<"1yr" | "5yr">("5yr");
   const [customizing, setCustomizing] = useState(false);
@@ -184,11 +184,15 @@ export function DashboardClient({
         return (
           <Card key={section}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Monthly Cash Flow Waterfall</CardTitle>
-              <p className="text-xs text-muted-foreground">How your income flows through expenses and debt payments</p>
+              <CardTitle className="text-base">Monthly Spending Breakdown</CardTitle>
+              <p className="text-xs text-muted-foreground">Where your {formatCurrency(monthlyIncome)} goes each month</p>
             </CardHeader>
             <CardContent>
-              {waterfallItems.length > 1 ? <WaterfallChart items={waterfallItems} /> : <p className="text-muted-foreground text-center py-12">Add income and expenses to see your cash flow</p>}
+              {spendingCategories.length > 0 ? (
+                <SpendingBreakdown categories={spendingCategories} totalIncome={monthlyIncome} surplus={freeSurplus} />
+              ) : (
+                <p className="text-muted-foreground text-center py-12">Add expenses to see your spending breakdown</p>
+              )}
             </CardContent>
           </Card>
         );

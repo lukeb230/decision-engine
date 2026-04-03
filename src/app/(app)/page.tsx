@@ -69,23 +69,16 @@ export default async function DashboardPage() {
   // DTI ratio: total monthly debt payments / gross monthly income
   const dtiRatio = monthlyGrossIncome > 0 ? (monthlyDebtPayments / monthlyGrossIncome) * 100 : 0;
 
-  // Waterfall data: income -> expenses by category -> debt payments -> surplus
+  // Spending breakdown by category
   const expensesByCategory: Record<string, number> = {};
   for (const e of expenseInputs) {
     const cat = e.category.charAt(0).toUpperCase() + e.category.slice(1);
     expensesByCategory[cat] = (expensesByCategory[cat] || 0) + e.amount;
   }
-
-  // Build waterfall: income flows through expenses -> debts -> contributions -> surplus
-  // Each bar subtracts from the running total, surplus is what remains
-  const waterfallItems = [
-    { name: "Net Income", amount: monthlyIncome, type: "income" as const },
-    ...Object.entries(expensesByCategory)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, amount]) => ({ name, amount: -amount, type: "expense" as const })),
-    ...debtInputs.map((d) => ({ name: d.name, amount: -d.minimumPayment, type: "debt" as const })),
-    ...(totalContributions > 0 ? [{ name: "Contributions", amount: -totalContributions, type: "expense" as const }] : []),
-    { name: "Free Surplus", amount: freeSurplus, type: "surplus" as const },
+  const spendingCategories = [
+    ...Object.entries(expensesByCategory).map(([name, amount]) => ({ name, amount, color: "" })),
+    ...(monthlyDebtPayments > 0 ? [{ name: "Debt Payments", amount: monthlyDebtPayments, color: "#ef4444" }] : []),
+    ...(totalContributions > 0 ? [{ name: "Contributions", amount: totalContributions, color: "#06b6d4" }] : []),
   ];
 
   const goalProjections = goalInputs.map((g) => {
@@ -114,7 +107,7 @@ export default async function DashboardPage() {
       goals={goalInputs}
       milestones={milestones}
       savingsProjection={savingsProjection}
-      waterfallItems={waterfallItems}
+      spendingCategories={spendingCategories}
     />
   );
 }
