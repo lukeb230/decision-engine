@@ -221,7 +221,7 @@ export function DashboardClient({
           <Card key={section}>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Monthly Spending Breakdown</CardTitle>
-              <p className="text-xs text-muted-foreground">Where your {formatCurrency(monthlyIncome)} goes each month</p>
+              <p className="text-xs text-muted-foreground">Where your {formatCurrency(monthlyIncome)} net income goes each month</p>
             </CardHeader>
             <CardContent>
               {spendingCategories.length > 0 ? (

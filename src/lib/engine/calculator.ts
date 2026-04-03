@@ -281,7 +281,8 @@ export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
 
   // Milestone: $100K net worth
   if (currentNetWorth < 100000) {
-    const monthlyGrowth = cashFlow + totalAssets * 0.005; // rough monthly appreciation
+    const weightedGrowth100 = state.assets.reduce((sum, a) => sum + a.value * (a.growthRate / 100 / 12), 0);
+    const monthlyGrowth = cashFlow + weightedGrowth100;
     const remaining = 100000 - currentNetWorth;
     const months = monthlyGrowth > 0 ? Math.ceil(remaining / monthlyGrowth) : Infinity;
     const date = new Date(now);
@@ -301,7 +302,7 @@ export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
   const liquidSavings = state.assets
     .filter((a) => a.type === "savings")
     .reduce((sum, a) => sum + a.value, 0);
-  const monthlyExpensesTotal = totalExpenses + debtPayments;
+  const monthlyExpensesTotal = totalExpenses; // Match calculateEmergencyFundMonths (expenses only, debt can be deferred in emergency)
   const emergencyTarget = monthlyExpensesTotal * 6;
 
   if (liquidSavings < emergencyTarget) {
@@ -322,7 +323,8 @@ export function estimateMilestones(state: FinancialState): MilestoneEstimate[] {
 
   // Milestone: $250K net worth
   if (currentNetWorth < 250000) {
-    const monthlyGrowth = cashFlow + totalAssets * 0.005;
+    const weightedGrowth250 = state.assets.reduce((sum, a) => sum + a.value * (a.growthRate / 100 / 12), 0);
+    const monthlyGrowth = cashFlow + weightedGrowth250;
     const remaining = 250000 - currentNetWorth;
     const months = monthlyGrowth > 0 ? Math.ceil(remaining / monthlyGrowth) : Infinity;
     const date = new Date(now);

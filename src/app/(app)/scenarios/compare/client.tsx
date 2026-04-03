@@ -87,7 +87,7 @@ function DiffBadge({ value, invert = false }: { value: number; invert?: boolean 
 }
 
 function MonthsDiffBadge({ value }: { value: number }) {
-  if (value === 0) return null;
+  if (value === 0 || !isFinite(value) || isNaN(value)) return null;
   const positive = value < 0; // fewer months is better
   return (
     <Badge

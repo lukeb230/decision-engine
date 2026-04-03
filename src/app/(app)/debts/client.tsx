@@ -243,7 +243,7 @@ export function DebtsClient({ items }: { items: Debt[] }) {
                                     style={{ width: `${Math.min(100, Math.max(0, paidPercent ?? 0))}%` }}
                                   />
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">{paidPercent}% paid off</p>
+                                <p className="text-[10px] text-muted-foreground">{Math.min(100, Math.max(0, paidPercent ?? 0))}% paid off</p>
                               </>
                             )}
                           </div>

@@ -52,7 +52,7 @@ export function ExpensesClient({ items }: { items: Expense[] }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Expense | null>(null);
   const [form, setForm] = useState({
-    name: "", amount: "", frequency: "monthly", category: "other", isFixed: "true",
+    name: "", amount: "", frequency: "monthly", category: "other", isFixed: "false",
   });
 
   const totalMonthly = items.reduce((sum, e) => sum + toMonthly(e.amount, e.frequency), 0);
@@ -61,7 +61,7 @@ export function ExpensesClient({ items }: { items: Expense[] }) {
 
   function openNew() {
     setEditing(null);
-    setForm({ name: "", amount: "", frequency: "monthly", category: "other", isFixed: "true" });
+    setForm({ name: "", amount: "", frequency: "monthly", category: "other", isFixed: "false" });
     setOpen(true);
   }
 
