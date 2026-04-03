@@ -45,6 +45,30 @@ function parseDate(dateStr: string): string | null {
   return null;
 }
 
+// Split CSV text into logical rows, handling multi-line quoted fields
+function splitCSVRows(text: string): string[] {
+  const rows: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      current += char;
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (current.trim()) rows.push(current);
+      current = "";
+      // Skip \r\n as single newline
+      if (char === "\r" && text[i + 1] === "\n") i++;
+    } else {
+      current += char;
+    }
+  }
+  if (current.trim()) rows.push(current);
+  return rows;
+}
+
 function detectFormat(headers: string[]): BankFormat {
   const lower = headers.map((h) => h.toLowerCase().trim());
   const joined = lower.join("|");
@@ -55,8 +79,11 @@ function detectFormat(headers: string[]): BankFormat {
   // Chase credit: has "Transaction Date", "Post Date", "Category", "Type"
   if (joined.includes("transaction date") && joined.includes("post date") && joined.includes("category") && joined.includes("type")) return "chase_credit";
 
-  // Amex: has "Card Member" or "Account #" (5+ column format)
-  if (joined.includes("card member") || joined.includes("account #") || joined.includes("account number")) return "amex";
+  // Amex: has "Extended Details" or "Appears On Your Statement As" or "Card Member" or "Account #"
+  if (joined.includes("extended details") || joined.includes("appears on your statement") || joined.includes("card member") || joined.includes("account #") || joined.includes("account number")) return "amex";
+
+  // Amex alternate: "Date, Description, Amount" with "Reference" or "Category" (11+ cols)
+  if (joined.includes("reference") && joined.includes("date") && joined.includes("amount")) return "amex";
 
   // NFCU checking: has separate "Debit" and "Credit" columns
   if (joined.includes("debit") && joined.includes("credit")) return "nfcu_checking";
@@ -64,19 +91,12 @@ function detectFormat(headers: string[]): BankFormat {
   // NFCU credit: has "Transaction Date" + "Post Date" (without Category/Type)
   if (joined.includes("transaction date") && joined.includes("post date")) return "nfcu_credit";
 
-  // Amex alternate formats: "Date, Description, Amount" (3 cols) or with Category/Type
-  // Check if it's exactly 3 columns: Date, Description, Amount — could be USAA or Amex
-  // Amex 4-col: Date, Description, Category, Type, Amount
-  // We'll check if there's NO "Original Description" (which is USAA-specific)
+  // Amex simple 3-col: Date, Description, Amount (no "Original Description" which is USAA)
   if (lower.length <= 5 && lower[0] === "date" && !joined.includes("original description")) {
-    // If 3 columns: Date, Description, Amount — ambiguous, but we'll treat as Amex
-    // since USAA typically has more columns or "Original Description"
-    if (lower.length === 3 && lower[1] === "description" && lower[2] === "amount") return "amex";
-    // Amex with Category: Date, Description, Category, Type, Amount
-    if (lower.includes("category") && lower.includes("type") && lower.includes("amount")) return "amex";
+    if (lower.includes("description") && lower.includes("amount")) return "amex";
   }
 
-  // USAA: has "Date", "Description", "Amount" (often with "Original Description" and "Category")
+  // USAA: has "Date", "Description", "Amount" (often with "Original Description")
   if (joined.includes("date") && joined.includes("description") && joined.includes("amount")) return "usaa";
 
   return "unknown";
@@ -175,7 +195,7 @@ function parseAmex(cols: string[], headers: string[]): { date: string | null; de
 }
 
 export function parseCSV(csvText: string): ParseResult {
-  const lines = csvText.split(/\r?\n/).filter((l) => l.trim());
+  const lines = splitCSVRows(csvText);
   if (lines.length < 2) return { format: "unknown", formatLabel: "Unknown", transactions: [], errors: ["File is empty or has no data rows"], dateRange: null };
 
   const headers = parseCSVLine(lines[0]);
