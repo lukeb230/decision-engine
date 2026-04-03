@@ -251,9 +251,9 @@ export default function CheckinWizard({ budget, pastCheckins }: Props) {
         try {
           const result = await parsePDF(file);
 
-          // If client-side parsing failed or got no transactions, try AI fallback
-          if (result.transactions.length === 0 && (result as any)._rawText) {
-            const rawText = (result as any)._rawText;
+          // If client-side parsing got no transactions, always try AI fallback
+          const rawText = (result as any)._rawText || "";
+          if (result.transactions.length === 0 && rawText.length > 0) {
             try {
               const aiRes = await fetch("/api/checkin/parse-pdf", {
                 method: "POST",

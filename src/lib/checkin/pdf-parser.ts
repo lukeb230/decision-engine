@@ -189,22 +189,51 @@ function parseNFCUCreditPDF(text: string): NormalizedTransaction[] {
  * Parse a PDF file into normalized transactions.
  * Tries client-side text extraction first.
  */
-export async function parsePDF(file: File): Promise<ParseResult> {
+export async function parsePDF(file: File): Promise<ParseResult & { _rawText?: string }> {
+  let text = "";
+
+  // Step 1: Extract text from PDF using pdf.js
   try {
-    const text = await extractPDFText(file);
-    const format = detectPDFFormat(text);
-    const formatLabel = {
-      usaa: "USAA (PDF)",
-      nfcu_checking: "Navy Federal Checking (PDF)",
-      nfcu_credit: "Navy Federal Credit Card (PDF)",
-      chase_checking: "Chase Checking (PDF)",
-      chase_credit: "Chase Credit Card (PDF)",
-      amex: "American Express (PDF)",
-      unknown: "Unknown PDF",
-    }[format];
+    text = await extractPDFText(file);
+  } catch (error) {
+    // pdf.js failed — return with empty text so AI fallback can be tried
+    return {
+      format: "unknown",
+      formatLabel: "PDF (text extraction failed)",
+      transactions: [],
+      errors: [`Could not extract text from PDF: ${error instanceof Error ? error.message : "Unknown error"}`],
+      dateRange: null,
+      _rawText: "",
+    };
+  }
 
-    let transactions: NormalizedTransaction[] = [];
+  if (!text || text.trim().length < 50) {
+    return {
+      format: "unknown",
+      formatLabel: "PDF (no text content)",
+      transactions: [],
+      errors: ["PDF appears to be image-based or empty. AI parsing will be attempted."],
+      dateRange: null,
+      _rawText: text,
+    };
+  }
 
+  const format = detectPDFFormat(text);
+  const formatLabels: Record<string, string> = {
+    usaa: "USAA (PDF)",
+    nfcu_checking: "Navy Federal Checking (PDF)",
+    nfcu_credit: "Navy Federal Credit Card (PDF)",
+    chase_checking: "Chase Checking (PDF)",
+    chase_credit: "Chase Credit Card (PDF)",
+    amex: "American Express (PDF)",
+    unknown: "Unknown PDF",
+  };
+  const formatLabel = formatLabels[format] || "Unknown PDF";
+
+  // Step 2: Try client-side parsing for supported formats
+  let transactions: NormalizedTransaction[] = [];
+
+  try {
     switch (format) {
       case "usaa":
         transactions = parseUSAAPDF(text);
@@ -212,39 +241,30 @@ export async function parsePDF(file: File): Promise<ParseResult> {
       case "nfcu_credit":
         transactions = parseNFCUCreditPDF(text);
         break;
-      default:
-        // For unsupported PDF formats, return with a flag to try AI parsing
-        return {
-          format,
-          formatLabel: formatLabel + " (needs AI parsing)",
-          transactions: [],
-          errors: [`PDF format "${formatLabel}" detected but automatic parsing not available. Click "Parse with AI" to extract transactions.`],
-          dateRange: null,
-          _rawText: text, // pass raw text for AI fallback
-        } as ParseResult & { _rawText: string };
     }
+  } catch {
+    // Client-side parsing failed — will fall through to AI
+  }
 
-    // Sort by date
+  // Step 3: If we got transactions, return them
+  if (transactions.length > 0) {
     transactions.sort((a, b) => a.date.localeCompare(b.date));
-
-    const dateRange = transactions.length > 0
-      ? { from: transactions[0].date, to: transactions[transactions.length - 1].date }
-      : null;
-
     return {
       format,
       formatLabel,
       transactions,
       errors: [],
-      dateRange,
-    };
-  } catch (error) {
-    return {
-      format: "unknown",
-      formatLabel: "PDF Parse Error",
-      transactions: [],
-      errors: [`Failed to parse PDF: ${error instanceof Error ? error.message : "Unknown error"}. Try "Parse with AI" instead.`],
-      dateRange: null,
+      dateRange: { from: transactions[0].date, to: transactions[transactions.length - 1].date },
     };
   }
+
+  // Step 4: No transactions found — always return raw text for AI fallback
+  return {
+    format,
+    formatLabel: formatLabel + " (needs AI parsing)",
+    transactions: [],
+    errors: [],
+    dateRange: null,
+    _rawText: text,
+  };
 }
