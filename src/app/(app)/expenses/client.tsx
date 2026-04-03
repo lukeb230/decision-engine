@@ -194,7 +194,7 @@ export function ExpensesClient({ items }: { items: Expense[] }) {
               <div>
                 <Label>Type</Label>
                 <Select value={form.isFixed} onValueChange={(v: string | null) => { if (v) setForm({ ...form, isFixed: v }); }}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger><SelectValue>{form.isFixed === "true" ? "Fixed" : "Variable"}</SelectValue></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="true">Fixed</SelectItem>
                     <SelectItem value="false">Variable</SelectItem>
